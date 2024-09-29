@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import "./TanstackReactTableResizing.css";
 
@@ -52,7 +52,7 @@ const ticketColumns = [
   {
     accessorKey: "Short Description",
     cell: (info) => <i>{info.getValue()}</i>,
-    header: () => <span>Short Description</span>,
+    header: () => <span>Short Desc</span>,
     enableResizing: true,
   },
   {
@@ -120,6 +120,11 @@ const ticketColumns = [
     cell: (info) => info.getValue(),
     header: () => "Resolved By",
   },
+  {
+    accessorKey: "Short description",
+    cell: (info) => info.getValue(),
+    header: () => "Focus",
+  },
 ];
 
 const defaultColumns1 = [
@@ -174,9 +179,10 @@ const defaultColumns1 = [
   },
 ];
 
-export default function TanstackReactTableResizing({ myData }) {
-  const [data] = React.useState(() => [...myData]);
+export default function TanstackReactTableResizing({ myData,searchText,handleChange }) {
+  //const [data] = React.useState(() => [...myData]);
   const [columns] = React.useState(() => [...ticketColumns]);
+  //const [myFinalData,setMyFinalData] = useState([...myData]);
 
   //   console.log("My Data resizing", myData);
   //   console.log("data in resize", data);
@@ -186,6 +192,9 @@ export default function TanstackReactTableResizing({ myData }) {
     React.useState("ltr");
 
   const rerender = React.useReducer(() => ({}), {})[1];
+
+  // const myFinalData = searchText ? 
+ // myData.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())) : myData;
 
   const table = useReactTable({
     data: myData ?? fallbackData,
@@ -218,6 +227,11 @@ export default function TanstackReactTableResizing({ myData }) {
       </select>
       <div style={{ direction: table.options.columnResizeDirection }}>
         <div className="h-4" />
+        <input className="b-2 p-2 my-2 " type="text" placeholder="Search..." onChange={handleChange}/>
+        <p>{searchText}</p>
+        <button className="b-2 border text-violet-600 p-1 my-1 text-md" onClick={()=> myData.filter((ele,idx)=>{
+          return ele["Description"].toLowerCase().includes(searchText.toLowerCase());
+        })}>Search</button>
         <div className="text-xl">{"<table/>"}</div>
         <div className="overflow-x-auto">
           <table
