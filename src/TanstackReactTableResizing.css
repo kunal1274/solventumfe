@@ -7,8 +7,10 @@
     font-size: 14px;
   }
   
+  
   table,
   .divTable {
+    user-select: text;
     border: 1px solid lightgray;
     width: fit-content;
   }

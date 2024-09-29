@@ -205,7 +205,27 @@ export default function TanstackReactTableResizing({ myData }) {
     setFilteredData(filtered);
   }, [searchText, myData]);
 
+
+
   const rerender = React.useReducer(() => ({}), {})[1];
+
+
+  const downloadCSV = () => {
+    let csvData = "Number,Description,Short Desc,Tags,Opened,Caller,Affected U\n";
+    myData.forEach((row) => {
+      csvData += `${row.Number},${row.Description},${row["Short Desc"]},${row.Tags},${row.Opened},${row.Caller},${row["Affected U"]}\n`;
+    });
+
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("hidden", "");
+    a.setAttribute("href", url);
+    a.setAttribute("download", "table_data.csv");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
 
   // const myFinalData = searchText ? 
  // myData.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())) : myData;
@@ -222,7 +242,7 @@ export default function TanstackReactTableResizing({ myData }) {
   });
 
   return (
-    <div className="p-2">
+    <div className="p-2 space-x-2">
       <select
         value={columnResizeMode}
         onChange={(e) => setColumnResizeMode(e.target.value)}
@@ -248,7 +268,9 @@ export default function TanstackReactTableResizing({ myData }) {
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
       />
-        <p>{searchText}</p>
+        {/* <p>{searchText}</p> */}
+        {/* <button className="border border-4 border-blue-600 text-gray-700" onClick={downloadCSV}>Download CSV</button> */}
+        
         
         <div className="text-xl">{"Solventum Tickets"}</div>
         <div className="overflow-x-auto">
