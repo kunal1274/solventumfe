@@ -20,16 +20,16 @@ const Tabs = () => {
     dayBeforeYesterday: [],
     threeDaysAgo: [],
   });
-  const [searchText,setSearchText] = useState('Lex');
+  //const [searchText,setSearchText] = useState('Lex');
 
 
-  const handleChange = (e) =>{
-    setSearchText(e.target.value);
-    //setData(data.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())));
-    // return data[firstLevelTab].filter((ele,idx)=>{
-    //   return ele.toLowerCase().includes(searchText.toLowerCase());
-    // })
-  }
+  // const handleChange = (e) =>{
+  //   setSearchText(e.target.value);
+  //   //setData(data.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())));
+  //   // return data[firstLevelTab].filter((ele,idx)=>{
+  //   //   return ele.toLowerCase().includes(searchText.toLowerCase());
+  //   // })
+  // }
   const chunkSize = 10000;
 
   const handleFileUpload = (event, tabName) => {
@@ -392,8 +392,8 @@ const Tabs = () => {
 
                     <TanstackReactTableResizing 
                     myData={highPriorityData} 
-                    handleChange={handleChange} 
-                    searchText={searchText} 
+                    //handleChange={handleChange} 
+                    //searchText={searchText} 
                     
                     />
                   </div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 
 import "./TanstackReactTableResizing.css";
 
@@ -179,7 +179,7 @@ const defaultColumns1 = [
   },
 ];
 
-export default function TanstackReactTableResizing({ myData,searchText,handleChange }) {
+export default function TanstackReactTableResizing({ myData }) {
   //const [data] = React.useState(() => [...myData]);
   const [columns] = React.useState(() => [...ticketColumns]);
   //const [myFinalData,setMyFinalData] = useState([...myData]);
@@ -191,13 +191,27 @@ export default function TanstackReactTableResizing({ myData,searchText,handleCha
   const [columnResizeDirection, setColumnResizeDirection] =
     React.useState("ltr");
 
+  const [searchText, setSearchText] = useState("");
+  const [filteredData, setFilteredData] = useState(myData);
+
+  // Handle search filter
+  useEffect(() => {
+    const filtered = myData.filter((row) => {
+      return Object.values(row)
+        .join(" ")
+        .toLowerCase()
+        .includes(searchText.toLowerCase());
+    });
+    setFilteredData(filtered);
+  }, [searchText, myData]);
+
   const rerender = React.useReducer(() => ({}), {})[1];
 
   // const myFinalData = searchText ? 
  // myData.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())) : myData;
 
   const table = useReactTable({
-    data: myData ?? fallbackData,
+    data: filteredData ?? fallbackData,
     columns,
     columnResizeMode,
     columnResizeDirection,
@@ -227,12 +241,16 @@ export default function TanstackReactTableResizing({ myData,searchText,handleCha
       </select>
       <div style={{ direction: table.options.columnResizeDirection }}>
         <div className="h-4" />
-        <input className="b-2 p-2 my-2 " type="text" placeholder="Search..." onChange={handleChange}/>
+        <input
+        className="border border-1 rounded-md border-blue-400 p-2 my-2"
+        type="text"
+        placeholder="Search..."
+        value={searchText}
+        onChange={(e) => setSearchText(e.target.value)}
+      />
         <p>{searchText}</p>
-        <button className="b-2 border text-violet-600 p-1 my-1 text-md" onClick={()=> myData.filter((ele,idx)=>{
-          return ele["Description"].toLowerCase().includes(searchText.toLowerCase());
-        })}>Search</button>
-        <div className="text-xl">{"<table/>"}</div>
+        
+        <div className="text-xl">{"Solventum Tickets"}</div>
         <div className="overflow-x-auto">
           <table
             {...{
