@@ -197,10 +197,12 @@ export default function TanstackReactTableResizing({ myData }) {
   // Handle search filter
   useEffect(() => {
     const filtered = myData.filter((row) => {
-      return (Object.values(row)
+      const x = (Object.values(row)
         .join(" ")
         .toLowerCase()
-        .includes(searchText.toLowerCase())) && (row["State"] === "New" || row["State"] === "In Progress" || row["State"] !== "Assigned");
+        .includes(searchText.toLowerCase()))
+        const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] !== "Assigned");
+      return x && y;
     });
     setFilteredData(filtered);
   }, [searchText, myData]);
