@@ -197,11 +197,12 @@ export default function TanstackReactTableResizing({ myData }) {
   // Handle search filter
   useEffect(() => {
     const filtered = myData.filter((row) => {
-      const x = (Object.values(row)
+      const x =  Object.values(row)
         .join(" ")
         .toLowerCase()
-        .includes(searchText.toLowerCase()))
-        const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] !== "Assigned");
+        .includes(searchText.toLowerCase());
+      const y = (ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned");
+
       return x && y;
     });
     setFilteredData(filtered);
@@ -271,6 +272,7 @@ export default function TanstackReactTableResizing({ myData }) {
         onChange={(e) => setSearchText(e.target.value)}
       />
       <p>Searched Total : {filteredData.length} out of which Active Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned")).length}</p>
+      <p>Critical Total : {filteredData.filter((ele,idx)=>(ele["Priority"] === "1 - Critical" && ((ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned")))).length}</p>
       <p>New Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New")).length}</p>
       <p>Assigned Total : {filteredData.filter((ele,idx)=>(ele["State"] === "Assigned")).length}</p>
       <p>WIP Total : {filteredData.filter((ele,idx)=>(ele["State"] === "In Progress")).length}</p>
