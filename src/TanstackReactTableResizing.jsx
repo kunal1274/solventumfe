@@ -268,6 +268,12 @@ export default function TanstackReactTableResizing({ myData }) {
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
       />
+      <p>Searched Total : {filteredData.length} out of which Active Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned")).length}</p>
+      <p>New Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New")).length}</p>
+      <p>Assigned Total : {filteredData.filter((ele,idx)=>(ele["State"] === "Assigned")).length}</p>
+      <p>WIP Total : {filteredData.filter((ele,idx)=>(ele["State"] === "In Progress")).length}</p>
+      <p>Resolved/Closed Total : {filteredData.filter((ele,idx)=>(ele["State"] === "Resolved" || ele["State"] === "Closed")).length}</p>
+      <p>Cancelled Total : {filteredData.filter((ele,idx)=>(ele["State"] === "Cancelled")).length}</p>
         {/* <p>{searchText}</p> */}
         {/* <button className="border border-4 border-blue-600 text-gray-700" onClick={downloadCSV}>Download CSV</button> */}
         
