@@ -201,7 +201,7 @@ export default function TanstackReactTableResizing({ myData }) {
         .join(" ")
         .toLowerCase()
         .includes(searchText.toLowerCase());
-      const y = (ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned");
+      const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] === "Assigned");
 
       return x && y;
     });
