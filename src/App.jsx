@@ -62,7 +62,7 @@ const Tabs = () => {
 
       // chunk the data
 
-      console.log("JSON DATA", jsonData);
+      //console.log("JSON DATA", jsonData);
       processChunks(jsonData, tabName);
     };
 
@@ -77,14 +77,14 @@ const Tabs = () => {
     //return date.toLocaleDateString();
 
     // break data into chunks
-    console.time("Creating Chunks");
+    //console.time("Creating Chunks");
 
     for (let i = 0; i < jsonData.length; i += chunkSize) {
       const chunk = jsonData.slice(i, i + chunkSize);
       chunks.push(chunk);
     }
-    console.timeEnd("Creating Chunks");
-    console.log("chunks data", chunks, chunks.length);
+   // console.timeEnd("Creating Chunks");
+    //console.log("chunks data", chunks, chunks.length);
 
     const processChunk = (index) => {
       if (index >= chunks.length) {
@@ -96,7 +96,7 @@ const Tabs = () => {
         ...prevData,
         [tabName]: [...prevData[tabName], ...chunks[index]],
       }));
-      console.log("index", index);
+      //console.log("index", index);
       //setLoadProgress((index / chunks.length) * 100);
       setLoadingProgress(Math.round((index / chunks.length) * 100000) / 1000);
       //console.log("%progress : ", loadProgress);
@@ -224,13 +224,13 @@ const Tabs = () => {
     const substringSearch = "Short description:";
     if (ele["Description"].startsWith(substringSearch)) {
       // Strip the description starting from index 18 (after "Short description:") till the first newline
-      ele["Short Description"] = ele["Description"].substring(
+      ele["Short Desc"] = ele["Description"].substring(
         18,
         // if there is new line or not equal to -1 then strip till first new line ,
         // if there is no new line or equal to -1 then strip till whole length.
         firstNewLineIndex !== -1 ? firstNewLineIndex : ele["Description"].length
       );
-      console.log("check 0", ele["Short Description"]);
+      //console.log("check 0", ele["Short Description"]);
     }
 
     // Group Work Notes by date and concatenate them for each day in the required format
@@ -242,7 +242,7 @@ const Tabs = () => {
       const latestDate = Object.keys(groupedWorkNotes).sort(
         (a, b) => new Date(b) - new Date(a)
       )[0];
-      ele["Latest Work Note"] = groupedWorkNotes[latestDate]; // Add the latest work note to the element
+      ele["Latest Note"] = groupedWorkNotes[latestDate]; // Add the latest work note to the element
     }
 
     return criticalElements || highElements || foundHighElements;
@@ -253,7 +253,7 @@ const Tabs = () => {
     const firstNewLineIndex = ele["Description"].indexOf("\n");
 
     if (firstNewLineIndex !== -1) {
-      ele["Short Description"] = ele["Description"].substring(
+      ele["Short Desc"] = ele["Description"].substring(
         18,
         firstNewLineIndex
       );

@@ -51,7 +51,7 @@ const ticketColumns = [
     enableResizing: true,
   },
   {
-    accessorKey: "Short Desc",
+    accessorKey: "Short Desc", // this is a custom method 
     cell: (info) => <i>{info.getValue()}</i>,
     header: () => <span>Short Desc</span>,
     enableResizing: true,
@@ -107,7 +107,7 @@ const ticketColumns = [
     header: () => "Work Notes",
   },
   {
-    accessorKey: "Latest Note",
+    accessorKey: "Latest Note", // this is a custom method 
     cell: (info) => info.getValue(),
     header: () => "Latest Note",
   },
@@ -127,7 +127,7 @@ const ticketColumns = [
     header: () => "Short description",
   },
   {
-    accessorKey: "Additional comments",
+    accessorKey: "Additional comments", // this is a custom method 
     cell: (info) => info.getValue(),
     header: () => "Additional comments",
   },
@@ -251,27 +251,46 @@ export default function TanstackReactTableResizing({ myData }) {
     React.useState("ltr");
 
   const [searchText, setSearchText] = useState("");
+  const [status,setStatus] = useState({
+    "New" : true,
+    "In Progress" : true,
+    "Assigned":true,
+    "Resolved" : false,
+    "Closed":false,
+    "Cancelled": false
+  })
   const [filteredData, setFilteredData] = useState(myData);
+
+  const handleStatusChange = (statusName) => {
+    setStatus((prevStatus)=>{
+      const newStatus = {
+        ...prevStatus,
+        [statusName] : !prevStatus[statusName]
+      }
+      return newStatus;
+    })
+  }
 
   // Handle search filter
   useEffect(() => {
     const filtered = myData.filter((row) => {
-      const x =  Object.values(row)
+      const searchMatch =  Object.values(row)
         .join(" ")
         .toLowerCase()
         .includes(searchText.toLowerCase());
-      const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] === "Assigned");
-        
-              return x && y;
+      //const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] === "Assigned");
+      const statusMatch = status[row["State"]]
+              //return x && y;
+              return searchMatch && statusMatch;
     });
     setFilteredData(filtered);
-  }, [searchText, myData]);
+  }, [searchText, status, myData]);
 
 
 
   const rerender = React.useReducer(() => ({}), {})[1];
 
-
+// not used
   const downloadCSV = () => {
     let csvData = "Number,Description,Short Desc,Tags,Opened,Caller,Affected U\n";
     myData.forEach((row) => {
@@ -287,8 +306,9 @@ export default function TanstackReactTableResizing({ myData }) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  };
+  }; // not used 
 
+  // not used 
   const downloadExcel = () => {
     let excelData = "Number\tDescription\tShort Desc\tTags\tOpened\tCaller\tAffected U\n";
     
@@ -305,7 +325,7 @@ export default function TanstackReactTableResizing({ myData }) {
         alert("Failed to copy data!");
       }
     );
-  }
+  } // not used 
 
   // const myFinalData = searchText ? 
  // myData.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())) : myData;
@@ -348,6 +368,22 @@ export default function TanstackReactTableResizing({ myData }) {
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
       />
+      <div className="h-2"/>
+      <div className="flex flex-row space-x-4 my-2">
+        {
+          Object.keys(status).map((statusName)=>(
+            <label className="space-x-2" key={statusName}>
+              <input
+              
+              type="checkbox"
+              checked={status[statusName]}
+              onChange={()=> handleStatusChange(statusName)}
+              />
+              {statusName}
+            </label>
+          ))
+        }
+      </div>
       <ExportToExcelButton tableData={filteredData}/>
       {/* <button onClick={downloadExcel} className="border border-2 text-gray-500 bg-red-200">Copy to Clipboard</button> */}
       <p>Searched Total : {filteredData.length} out of which Active Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned")).length}</p>
