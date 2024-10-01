@@ -51,7 +51,7 @@ const ticketColumns = [
     enableResizing: true,
   },
   {
-    accessorKey: "Short Description",
+    accessorKey: "Short Desc",
     cell: (info) => <i>{info.getValue()}</i>,
     header: () => <span>Short Desc</span>,
     enableResizing: true,
@@ -107,9 +107,9 @@ const ticketColumns = [
     header: () => "Work Notes",
   },
   {
-    accessorKey: "Latest Work Note",
+    accessorKey: "Latest Note",
     cell: (info) => info.getValue(),
-    header: () => "Latest Update",
+    header: () => "Latest Note",
   },
   {
     accessorKey: "Resolved",
@@ -124,7 +124,22 @@ const ticketColumns = [
   {
     accessorKey: "Short description",
     cell: (info) => info.getValue(),
-    header: () => "Focus",
+    header: () => "Short description",
+  },
+  {
+    accessorKey: "Additional comments",
+    cell: (info) => info.getValue(),
+    header: () => "Additional comments",
+  },
+  {
+    accessorKey: "Latest Comments",
+    cell: (info) => info.getValue(),
+    header: () => "Latest Comments",
+  },
+  {
+    accessorKey: "Final Comments",
+    cell: (info) => info.getValue(),
+    header: () => "Final Comments",
   },
 ];
 
