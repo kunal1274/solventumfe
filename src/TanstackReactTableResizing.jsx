@@ -1,4 +1,5 @@
 import React, { useState,useEffect } from "react";
+import * as XLSX from 'xlsx';
 
 import "./TanstackReactTableResizing.css";
 
@@ -179,6 +180,49 @@ const defaultColumns1 = [
   },
 ];
 
+
+
+
+export function ExportToExcelButton({ tableData }) {
+  // Function to generate and download the Excel file
+  const exportToExcel = () => {
+    // Define the table columns
+    const worksheetData = [
+      ['Number', 'Description', 'Short Desc', 'Tags', 'Opened', 'Caller', 'Affected U'], // Table Headers
+    ];
+
+    // Push table rows into worksheet data
+    tableData.forEach(row => {
+      worksheetData.push([
+        row.Number,
+        row.Description,
+        row['Short Desc'],
+        row.Tags,
+        row.Opened,
+        row.Caller,
+        row['Affected U']
+      ]);
+    });
+
+    // Create a new worksheet and workbook
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Tickets');
+
+    // Generate Excel file and trigger download
+    XLSX.writeFile(workbook, 'Tickets.xlsx');
+  };
+
+  return (
+    <div>
+      <button onClick={exportToExcel} className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+        Export Table to Excel
+      </button>
+    </div>
+  );
+}
+
+
 export default function TanstackReactTableResizing({ myData }) {
   //const [data] = React.useState(() => [...myData]);
   const [columns] = React.useState(() => [...ticketColumns]);
@@ -230,6 +274,24 @@ export default function TanstackReactTableResizing({ myData }) {
     document.body.removeChild(a);
   };
 
+  const downloadExcel = () => {
+    let excelData = "Number\tDescription\tShort Desc\tTags\tOpened\tCaller\tAffected U\n";
+    
+    myData.forEach((row) => {
+      excelData += `${row.Number}\t${row.Description}\t${row["Short Desc"]}\t${row.Tags}\t${row.Opened}\t${row.Caller}\t${row["Affected U"]}\n`;
+    });
+
+    // Copy the Excel-formatted data to clipboard
+    navigator.clipboard.writeText(excelData).then(
+      function () {
+        alert("Table data copied to clipboard! You can now paste it into Excel.");
+      },
+      function () {
+        alert("Failed to copy data!");
+      }
+    );
+  }
+
   // const myFinalData = searchText ? 
  // myData.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())) : myData;
 
@@ -271,6 +333,8 @@ export default function TanstackReactTableResizing({ myData }) {
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
       />
+      <ExportToExcelButton tableData={filteredData}/>
+      {/* <button onClick={downloadExcel} className="border border-2 text-gray-500 bg-red-200">Copy to Clipboard</button> */}
       <p>Searched Total : {filteredData.length} out of which Active Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned")).length}</p>
       <p>New Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New")).length}</p>
       <p>Assigned Total : {filteredData.filter((ele,idx)=>(ele["State"] === "Assigned")).length}</p>
