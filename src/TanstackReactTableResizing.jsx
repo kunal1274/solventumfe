@@ -1,4 +1,4 @@
-import React, { useState,useEffect } from "react";
+import React, { useState,useEffect, useMemo } from "react";
 import * as XLSX from 'xlsx';
 
 import "./TanstackReactTableResizing.css";
@@ -238,6 +238,7 @@ export function ExportToExcelButton({ tableData }) {
 }
 
 
+const keywords = ["high", "critical", "urgent", "important", "emergency"];
 export default function TanstackReactTableResizing({ myData }) {
   //const [data] = React.useState(() => [...myData]);
   const [columns] = React.useState(() => [...ticketColumns]);
@@ -259,7 +260,61 @@ export default function TanstackReactTableResizing({ myData }) {
     "Closed":false,
     "Cancelled": false
   })
+  const [priority,setPriority] = useState({
+    "1 - Critical" : true,
+    "2 - High" : true,
+    "3 - Medium":false,
+    "4 - Low":false
+
+  })
+
+  const [keywordsFlag,setKeywordsFlag] = useState(true);
+  const [focusFlag,setFocusFlag] = useState(false);
+
+  // Backup states to restore later
+const [oldStatus, setOldStatus] = useState(status);
+const [oldPriority, setOldPriority] = useState(priority);
+
+  
   const [filteredData, setFilteredData] = useState(myData);
+
+  // Handle focus flag toggle
+const handleFocusFlag = () => {
+  setFocusFlag(!focusFlag);
+
+  if (!focusFlag) {
+    // Storing old status and priority
+    setOldStatus(status);
+    setOldPriority(priority);
+
+    // Setting keywordsFlag to false
+    setKeywordsFlag(false);
+
+    // Set all statuses to false
+    setStatus({
+      "New": false,
+      "In Progress": false,
+      "Assigned": false,
+      "Resolved": false,
+      "Closed": false,
+      "Cancelled": false
+    });
+
+    // Set all priorities to false
+    setPriority({
+      "1 - Critical": false,
+      "2 - High": false,
+      "3 - Medium": false,
+      "4 - Low": false
+    });
+  } else {
+    // Resetting back to old status and priority when focusFlag is turned off
+    setKeywordsFlag(true);
+    setStatus(oldStatus);
+    setPriority(oldPriority);
+  }
+};
+
 
   const handleStatusChange = (statusName) => {
     setStatus((prevStatus)=>{
@@ -271,20 +326,121 @@ export default function TanstackReactTableResizing({ myData }) {
     })
   }
 
-  // Handle search filter
+  const memoizedFilteredData = useMemo(() => {
+    if (focusFlag) {
+      // Focus Flag is ON, only apply focus filtering with searchText and 'Short description'
+      return myData.filter((row) => {
+        const searchMatch = Object.values(row)
+          .join(" ")
+          .toLowerCase()
+          .includes(searchText.toLowerCase());
+        
+        const focusMatch = row["Short description"]
+          .toLowerCase()
+          .includes("focus");
+  
+        return searchMatch && focusMatch;
+      });
+    } else {
+      // Focus Flag is OFF, apply full filtering logic
+      return myData.filter((row) => {
+        const searchMatch = Object.values(row)
+          .join(" ")
+          .toLowerCase()
+          .includes(searchText.toLowerCase());
+  
+        const statusMatch = status[row["State"]];
+        const priorityMatch = priority[row["Priority"]];
+        
+        const keywordMatch = keywordsFlag 
+          ? keywords.some((eachKeyword) =>
+              row["Description"]
+                .toLowerCase()
+                .includes(eachKeyword.toLowerCase())
+            ) 
+          : true; // Skip keyword matching if flag is off
+  
+        return searchMatch && statusMatch && priorityMatch && keywordMatch;
+      });
+    }
+  }, [searchText, status, keywordsFlag, focusFlag, myData, priority]);
+  
+  // Update the filtered data in the effect hook
   useEffect(() => {
-    const filtered = myData.filter((row) => {
-      const searchMatch =  Object.values(row)
-        .join(" ")
-        .toLowerCase()
-        .includes(searchText.toLowerCase());
-      //const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] === "Assigned");
-      const statusMatch = status[row["State"]]
-              //return x && y;
-              return searchMatch && statusMatch;
-    });
-    setFilteredData(filtered);
-  }, [searchText, status, myData]);
+    setFilteredData(memoizedFilteredData);
+  }, [memoizedFilteredData]);
+  
+  // const memoizedFilteredData = useMemo(() => {
+  //   const filtered = myData.filter((row) => {
+  //     const searchMatch =  Object.values(row)
+  //       .join(" ")
+  //       .toLowerCase()
+  //       .includes(searchText.toLowerCase());
+  //     //const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] === "Assigned");
+  //     const statusMatch = status[row["State"]];
+  //     const priorityMatch = priority[row["Priority"]];
+  //     const keywordMatch = keywordsFlag ?  keywords.some((eachKeyword) => {
+  //       return row["Description"]
+  //         .toLowerCase()
+  //         .includes(eachKeyword.toLowerCase());
+  //     }) : true; // by making it true we are skipping the things.
+  //             //return x && y;
+  //             return searchMatch && statusMatch && priorityMatch && keywordMatch;
+  //   });
+
+  //   const focusFiltered = myData.filter((row)=>{
+  //     const searchMatch =  Object.values(row)
+  //     .join(" ")
+  //     .toLowerCase()
+  //     .includes(searchText.toLowerCase());
+  //     const focusMatch = row["Short description"].toLowerCase().includes("focus");
+
+  //     return searchMatch && focusMatch;
+  //   })
+
+  //   // If focusFlag is true, use focusFiltered, otherwise use normal filtered
+  // //setFilteredData(focusFlag ? focusFiltered : filtered);
+  // return focusFlag ? focusFiltered : filtered;
+
+  // }, [searchText, status,keywordsFlag, focusFlag, myData]);
+
+  // useEffect(() => {
+  //   setFilteredData(memoizedFilteredData);
+  // }, [memoizedFilteredData]);
+
+  // Handle search filter
+  // useEffect(() => {
+  //   const filtered = myData.filter((row) => {
+  //     const searchMatch =  Object.values(row)
+  //       .join(" ")
+  //       .toLowerCase()
+  //       .includes(searchText.toLowerCase());
+  //     //const y = (row["State"] === "New" || row["State"] === "In Progress" || row["State"] === "Assigned");
+  //     const statusMatch = status[row["State"]];
+  //     const priorityMatch = priority[row["Priority"]];
+  //     const keywordMatch = keywordsFlag ?  keywords.some((eachKeyword) => {
+  //       return row["Description"]
+  //         .toLowerCase()
+  //         .includes(eachKeyword.toLowerCase());
+  //     }) : true; // by making it true we are skipping the things.
+  //             //return x && y;
+  //             return searchMatch && statusMatch && priorityMatch && keywordMatch;
+  //   });
+
+  //   const focusFiltered = myData.filter((row)=>{
+  //     const searchMatch =  Object.values(row)
+  //     .join(" ")
+  //     .toLowerCase()
+  //     .includes(searchText.toLowerCase());
+  //     const focusMatch = row["Short description"].toLowerCase().includes("focus");
+
+  //     return searchMatch && focusMatch;
+  //   })
+
+  //   // If focusFlag is true, use focusFiltered, otherwise use normal filtered
+  // setFilteredData(focusFlag ? focusFiltered : filtered);
+
+  // }, [searchText, status,keywordsFlag, focusFlag, myData]);
 
 
 
@@ -372,9 +528,9 @@ export default function TanstackReactTableResizing({ myData }) {
       <div className="flex flex-row space-x-4 my-2">
         {
           Object.keys(status).map((statusName)=>(
-            <label className="space-x-2" key={statusName}>
+            <label className="flex items-center space-x-2" key={statusName}>
               <input
-              
+              className="mr-2"
               type="checkbox"
               checked={status[statusName]}
               onChange={()=> handleStatusChange(statusName)}
@@ -384,6 +540,52 @@ export default function TanstackReactTableResizing({ myData }) {
           ))
         }
       </div>
+
+      <div className="h-2"/>
+      <div className="flex flex-row space-x-4 my-2">
+        {
+          Object.keys(priority).map((priorityName)=>(
+            <label className="flex items-center space-x-2" key={priorityName}>
+              <input
+              className="mr-2"
+              type="checkbox"
+              checked={priority[priorityName]}
+              onChange={()=> handleStatusChange(priorityName)}
+              />
+              {priorityName}
+            </label>
+          ))
+        }
+      </div>
+
+      <div className="h-2"/>
+      <label className="space-x-2">
+              
+              <div className="flex flex-row space-x-2">
+              <input
+              className="p-2"
+              type="checkbox"
+              checked={keywordsFlag}
+              onChange={(e)=> setKeywordsFlag(!keywordsFlag)}
+              />
+              {keywords.map((ele,idx)=>{
+                return (<p>{ele},</p>)
+              })}
+              </div>
+              
+            </label>
+        <div className="h-2"/>
+        <label className="flex items-center space-x-2">
+              <input
+              className="mr-2"
+              type="checkbox"
+              checked={focusFlag}
+              onChange={(e)=> setFocusFlag(!focusFlag)}
+              />
+              {`Focused Incidents`}
+            </label>
+
+
       <ExportToExcelButton tableData={filteredData}/>
       {/* <button onClick={downloadExcel} className="border border-2 text-gray-500 bg-red-200">Copy to Clipboard</button> */}
       <p>Searched Total : {filteredData.length} out of which Active Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned")).length}</p>
