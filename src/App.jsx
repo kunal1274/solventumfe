@@ -201,14 +201,69 @@ const Tabs = () => {
     return formattedNotesByDate;
   };
 
-  const highPriorityDataInitial = data[firstLevelTab].filter((ele, idx) => {
-    const criticalElements = ele["Priority"] === "1 - Critical";
-    const highElements = ele["Priority"] === "2 - High";
-    const foundHighElements = keywords.some((eachKeyword) => {
-      return ele["Description"]
-        .toLowerCase()
-        .includes(eachKeyword.toLowerCase());
+  const groupAdditionalCommentsByDate = (addlCommentsString) => {
+    const addlComments = [];
+    const regex = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/g; // Regex to match the timestamp
+    let matches;
+    let currentIndex = 0;
+
+    //console.log("check before", workNotesString);
+    // Loop through each match (each timestamp)
+    while ((matches = regex.exec(addlCommentsString)) !== null) {
+      // Capture the first note before the first timestamp (if it's the first iteration)
+      if (currentIndex === 0 && matches.index !== 0) {
+        addlComments.push(addlCommentsString.substring(0, matches.index).trim());
+      }
+
+      // Push the previous note into the array (from the last match to current match)
+      if (currentIndex !== 0) {
+        addlComments.push(
+          addlCommentsString.substring(currentIndex, matches.index).trim()
+        );
+      }
+      // Update currentIndex to start at this match
+      currentIndex = matches.index;
+    }
+
+    // Push the final note after the last timestamp
+    addlComments.push(addlCommentsString.substring(currentIndex).trim());
+    //console.log("check 0", workNotes);
+
+    // Group the notes by date
+    // Group the notes by date
+    const commentsByDate = {};
+    addlComments.forEach((note) => {
+      const date = note.match(/\d{4}-\d{2}-\d{2}/)?.[0]; // Extract only the date part
+      const content = note.replace(
+        /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - /,
+        ""
+      ); // Remove the timestamp from the content
+      if (date) {
+        if (!commentsByDate[date]) {
+          commentsByDate[date] = [];
+        }
+        commentsByDate[date].push(content); // Group notes by date
+      }
     });
+    //console.log("check 1", notesByDate);
+
+    // Concatenate notes for each date in the desired format
+    const formattedNotesByDate = {};
+    Object.keys(commentsByDate).forEach((date) => {
+      formattedNotesByDate[date] = `${date} :\n` + commentsByDate[date].join("\n"); // Date followed by notes on new lines
+    });
+
+    return formattedNotesByDate;
+  };
+
+  const modifiedData = data[firstLevelTab].map((ele, idx) => {
+    // const criticalElements = ele["Priority"] === "1 - Critical";
+    // const highElements = ele["Priority"] === "2 - High";
+    // const foundHighElements = keywords.some((eachKeyword) => {
+    //   return ele["Description"]
+    //     .toLowerCase()
+    //     .includes(eachKeyword.toLowerCase());
+    // });
 
     // Extract text till the first newline, if it exists
     const firstNewLineIndex = ele["Description"].indexOf("\n");
@@ -235,31 +290,58 @@ const Tabs = () => {
 
     // Group Work Notes by date and concatenate them for each day in the required format
     // console.log("check 4", ele["Work notes"]);
+    let workNoteDate = null;
+    let addlCommentsDate = null;
+    let groupedWorkNotes = null;
+    let groupedAddlComments = null;
+
     if (ele["Work notes"]) {
-      const groupedWorkNotes = groupWorkNotesByDate(ele["Work notes"]);
+      groupedWorkNotes = groupWorkNotesByDate(ele["Work notes"]);
 
       // Get the latest date and its concatenated work notes
-      const latestDate = Object.keys(groupedWorkNotes).sort(
+      workNoteDate = Object.keys(groupedWorkNotes).sort(
         (a, b) => new Date(b) - new Date(a)
       )[0];
-      ele["Latest Note"] = groupedWorkNotes[latestDate]; // Add the latest work note to the element
+      ele["Latest Note"] = groupedWorkNotes[workNoteDate]; // Add the latest work note to the element
     }
 
-    return criticalElements || highElements || foundHighElements;
-  });
+    // Group Addl Comments by date and concatenate them for each day in the required format
+    // console.log("check 4", ele["Work notes"]);
+    if (ele["Additional comments"]) {
+      //const groupedWorkNotes = groupWorkNotesByDate(ele["Work notes"]);
+      groupedAddlComments = groupAdditionalCommentsByDate(ele["Additional comments"]);
 
-  const highPriorityData = highPriorityDataInitial.map((ele, idx) => {
-    // Modify the filtered array by stripping the description till the first new line
-    const firstNewLineIndex = ele["Description"].indexOf("\n");
-
-    if (firstNewLineIndex !== -1) {
-      ele["Short Desc"] = ele["Description"].substring(
-        18,
-        firstNewLineIndex
-      );
+      // Get the latest date and its concatenated work notes
+      addlCommentsDate = Object.keys(groupedAddlComments).sort(
+        (a, b) => new Date(b) - new Date(a)
+      )[0];
+      ele["Latest Comments"] = groupedAddlComments[addlCommentsDate]; // Add the latest work note to the element
     }
+
+    if (new Date(addlCommentsDate) >= new Date(workNoteDate)) {
+      // If Latest Comments date is greater than or equal to Latest Note date, set Final Comments
+      ele["Final Comments"] = groupedAddlComments[addlCommentsDate];
+    } else {
+      // Otherwise, set Final Comments to Latest Note
+      ele["Final Comments"] = groupedWorkNotes[workNoteDate];
+    }
+
     return ele;
+    //return true; //criticalElements || highElements || foundHighElements;
   });
+
+  // const highPriorityData = highPriorityDataInitial.map((ele, idx) => {
+  //   // Modify the filtered array by stripping the description till the first new line
+  //   const firstNewLineIndex = ele["Description"].indexOf("\n");
+
+  //   if (firstNewLineIndex !== -1) {
+  //     ele["Short Desc"] = ele["Description"].substring(
+  //       18,
+  //       firstNewLineIndex
+  //     );
+  //   }
+  //   return ele;
+  // });
 
   return (
     <div>
@@ -391,7 +473,8 @@ const Tabs = () => {
                     {/* <TanstackReactTable myData={data[firstLevelTab]} /> */}
 
                     <TanstackReactTableResizing 
-                    myData={highPriorityData} 
+                    //myData={data[firstLevelTab]} 
+                    myData={modifiedData}
                     //handleChange={handleChange} 
                     //searchText={searchText} 
                     

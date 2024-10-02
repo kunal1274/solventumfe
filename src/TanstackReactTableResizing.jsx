@@ -40,6 +40,13 @@ const defaultData = [
 
 const ticketColumns = [
   {
+    accessorKey:"SlNo",
+    accessorFn: (row, index) => index + 1, // Add 1 to start the numbering from 1
+    //id: 'SlNo', // ID for the column, used instead of accessorKey since it's custom
+    header: () => "Sl No", // Column header
+    cell: (info) => info.getValue(), // Display the value (which is the index)
+  },
+  {
     accessorKey: "Number",
     cell: (info) => info.getValue(),
     header: () => "Number",
@@ -203,19 +210,33 @@ export function ExportToExcelButton({ tableData }) {
   const exportToExcel = () => {
     // Define the table columns
     const worksheetData = [
-      ['Number', 'Description', 'Short Desc', 'Tags', 'Opened', 'Caller', 'Affected U'], // Table Headers
+      ['SlNo','Number', 'Description', 'Short Desc', 'Tags', 'Opened', 'Caller', 'Affected user','Priority','State','Assigned to','Updated','Updated by','Work notes','Latest Note','Resolved','Resolved by','Short description','Additional comments','Latest Comments','Final Comments'], // Table Headers
     ];
 
     // Push table rows into worksheet data
-    tableData.forEach(row => {
+    tableData.forEach((row,index) => {
       worksheetData.push([
+        index + 1,
         row.Number,
         row.Description,
         row['Short Desc'],
         row.Tags,
         row.Opened,
         row.Caller,
-        row['Affected U']
+        row['Affected user'],
+        row['Priority'],
+        row['State'],
+        row['Assigned to'],
+        row['Updated'],
+        row['Updated by'],
+        row['Work notes'],
+        row['Latest Note'],
+        row['Resolved'],
+        row['Resolved by'],
+        row['Short description'],
+        row['Additional comments'],
+        row['Latest Comments'],
+        row['Final Comments']
       ]);
     });
 
@@ -252,6 +273,7 @@ export default function TanstackReactTableResizing({ myData }) {
     React.useState("ltr");
 
   const [searchText, setSearchText] = useState("");
+  const [searchResourceText,setSearchResourceText] = useState("");
   const [status,setStatus] = useState({
     "New" : true,
     "In Progress" : true,
@@ -315,6 +337,9 @@ const handleFocusFlag = () => {
   }
 };
 
+const handleKeywordsFlag =()=>{
+  setKeywordsFlag(!keywordsFlag);
+}
 
   const handleStatusChange = (statusName) => {
     setStatus((prevStatus)=>{
@@ -326,6 +351,16 @@ const handleFocusFlag = () => {
     })
   }
 
+  const handlePriorityChange = (priorityName) => {
+    setPriority((prevPriority)=>{
+      const newPriority = {
+        ...prevPriority,
+        [priorityName] : !prevPriority[priorityName]
+      }
+      return newPriority;
+    })
+  }
+
   const memoizedFilteredData = useMemo(() => {
     if (focusFlag) {
       // Focus Flag is ON, only apply focus filtering with searchText and 'Short description'
@@ -334,12 +369,16 @@ const handleFocusFlag = () => {
           .join(" ")
           .toLowerCase()
           .includes(searchText.toLowerCase());
+
+        const resourceMatch = row["Assigned to"]
+        ?.toLowerCase()
+        .includes(searchResourceText.toLowerCase());
         
         const focusMatch = row["Short description"]
           .toLowerCase()
           .includes("focus");
   
-        return searchMatch && focusMatch;
+        return searchMatch && (resourceMatch ?? true )  && focusMatch;
       });
     } else {
       // Focus Flag is OFF, apply full filtering logic
@@ -348,6 +387,10 @@ const handleFocusFlag = () => {
           .join(" ")
           .toLowerCase()
           .includes(searchText.toLowerCase());
+
+        const resourceMatch = row["Assigned to"]
+          ?.toLowerCase()
+          .includes(searchResourceText.toLowerCase())
   
         const statusMatch = status[row["State"]];
         const priorityMatch = priority[row["Priority"]];
@@ -360,10 +403,10 @@ const handleFocusFlag = () => {
             ) 
           : true; // Skip keyword matching if flag is off
   
-        return searchMatch && statusMatch && priorityMatch && keywordMatch;
+        return searchMatch && ( resourceMatch ?? true)  && statusMatch && priorityMatch && keywordMatch;
       });
     }
-  }, [searchText, status, keywordsFlag, focusFlag, myData, priority]);
+  }, [searchText,searchResourceText, status, keywordsFlag, focusFlag, myData, priority]);
   
   // Update the filtered data in the effect hook
   useEffect(() => {
@@ -518,12 +561,20 @@ const handleFocusFlag = () => {
       <div style={{ direction: table.options.columnResizeDirection }}>
         <div className="h-4" />
         <input
-        className="border border-1 rounded-md border-blue-400 p-2 my-2"
+        className="border border-1 rounded-md border-blue-400 p-2 my-2 mr-4"
         type="text"
-        placeholder="Search..."
+        placeholder="Search Anything..."
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
       />
+      <input
+        className="border border-1 rounded-md border-blue-400 p-2 my-2"
+        type="text"
+        placeholder="Search by Resource..."
+        value={searchResourceText}
+        onChange={(e) => setSearchResourceText(e.target.value)}
+      />
+      <span className="ml-2 text-sm">** will show blank resources as well</span>
       <div className="h-2"/>
       <div className="flex flex-row space-x-4 my-2">
         {
@@ -550,7 +601,7 @@ const handleFocusFlag = () => {
               className="mr-2"
               type="checkbox"
               checked={priority[priorityName]}
-              onChange={()=> handleStatusChange(priorityName)}
+              onChange={()=> handlePriorityChange(priorityName)}
               />
               {priorityName}
             </label>
@@ -566,9 +617,9 @@ const handleFocusFlag = () => {
               className="p-2"
               type="checkbox"
               checked={keywordsFlag}
-              onChange={(e)=> setKeywordsFlag(!keywordsFlag)}
+              onChange={handleKeywordsFlag}
               />
-              {keywords.map((ele,idx)=>{
+              <p>include keywords like </p> {keywords.map((ele,idx)=>{
                 return (<p>{ele},</p>)
               })}
               </div>
@@ -580,7 +631,7 @@ const handleFocusFlag = () => {
               className="mr-2"
               type="checkbox"
               checked={focusFlag}
-              onChange={(e)=> setFocusFlag(!focusFlag)}
+              onChange={handleFocusFlag}
               />
               {`Focused Incidents`}
             </label>
