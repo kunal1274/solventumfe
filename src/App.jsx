@@ -319,8 +319,16 @@ const Tabs = () => {
     }
 
     if (new Date(addlCommentsDate) >= new Date(workNoteDate)) {
+      //console.log(groupedAddlComments)
+      // if(groupedAddlComments === null){
+      //   ele["Final Comments"] = groupedWorkNotes[workNoteDate];
+      // }
+      // else{
       // If Latest Comments date is greater than or equal to Latest Note date, set Final Comments
-      ele["Final Comments"] = groupedAddlComments[addlCommentsDate];
+      //ele["Final Comments"] = groupedAddlComments[addlCommentsDate] ?? "Not Found";
+      ele["Final Comments"] = "Better check manually, not found "; //groupedAddlComments[addlCommentsDate]; //(groupedAddlComments === null) ? `Not Found in Comments. But Latest Note as below : ${groupedAddlComments[workNoteDate]}` : groupedAddlComments[addlCommentsDate];
+    
+      //}
     } else {
       // Otherwise, set Final Comments to Latest Note
       ele["Final Comments"] = groupedWorkNotes[workNoteDate];
