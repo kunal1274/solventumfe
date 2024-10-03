@@ -222,6 +222,7 @@ export function ExportToExcelButton({ tableData }) {
         row['Short Desc'],
         row.Tags,
         row.Opened,
+        ///new Date(Date.UTC(1899,11,30+ row.Opened * 86400000)),
         row.Caller,
         row['Affected user'],
         row['Priority'],

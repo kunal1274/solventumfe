@@ -50,8 +50,11 @@ const Tabs = () => {
 
       jsonData = jsonData.map((row) => ({
         ...row,
-        ...(row.Date && { Date: formatDate(row.Date) }),
-        ...(row.Duration && { Duration: formatTime(row.Duration) }),
+        ...(row.Opened && { Opened : excelSerialToDate(row.Opened)}),
+        ...(row.Updated && { Updated : excelSerialToDate(row.Updated)}),
+        ...(row.Resolved && { Resolved : excelSerialToDate(row.Resolved)}),
+        //...(row.Date && { Date: formatDate(row.Date) }),
+        //...(row.Duration && { Duration: formatTime(row.Duration) }),
       }));
 
       // setData((prevData) => ({
@@ -105,6 +108,32 @@ const Tabs = () => {
     };
 
     processChunk(0); // start processing first chunk
+  };
+
+  const excelSerialToDate = (serial) => {
+    
+    const excelStartDate = new Date(Date.UTC(1899,11,30));
+    const millisecondsPerDay = 24*60*60*1000;
+
+    const date = new Date(excelStartDate.getTime() + serial*millisecondsPerDay);
+    //console.log(serial,date);
+    return date.toLocaleDateString();
+  }
+
+  const formatDateTime = (dateTimeString) => {
+    console.log(dateTimeString,dateTimeString.toLocaleDateString,dateTimeString.toLocaleTimeString);
+    const [datePart, timePart] = dateTimeString.split(' ');
+    
+    // Format Date
+    const [day, month, year] = datePart.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    const formattedDate = date.toLocaleDateString();
+  
+    // Format Time
+    const [hours, minutes, seconds] = timePart.split(':').map(Number);
+    const formattedTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  
+    return { formattedDate, formattedTime };
   };
 
   const formatDate = (serial) => {
