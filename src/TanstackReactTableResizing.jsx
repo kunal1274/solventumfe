@@ -274,6 +274,7 @@ export default function TanstackReactTableResizing({ myData }) {
 
   const [searchText, setSearchText] = useState("");
   const [searchResourceText,setSearchResourceText] = useState("");
+  const [searchTagText,setSearchTagText]=useState("");
   const [status,setStatus] = useState({
     "New" : true,
     "In Progress" : true,
@@ -373,12 +374,16 @@ const handleKeywordsFlag =()=>{
         const resourceMatch = row["Assigned to"]
         ?.toLowerCase()
         .includes(searchResourceText.toLowerCase());
+
+        const tagMatch = row["Tags"]
+        ?.toLowerCase()
+        .includes(searchTagText.toLowerCase());
         
         const focusMatch = row["Short description"]
           .toLowerCase()
           .includes("focus");
   
-        return searchMatch && (resourceMatch ?? true )  && focusMatch;
+        return searchMatch && (resourceMatch ?? true ) && ( tagMatch ?? true) && focusMatch;
       });
     } else {
       // Focus Flag is OFF, apply full filtering logic
@@ -390,7 +395,11 @@ const handleKeywordsFlag =()=>{
 
         const resourceMatch = row["Assigned to"]
           ?.toLowerCase()
-          .includes(searchResourceText.toLowerCase())
+          .includes(searchResourceText.toLowerCase());
+
+          const tagMatch = row["Tags"]
+          ?.toLowerCase()
+          .includes(searchTagText.toLowerCase());
   
         const statusMatch = status[row["State"]];
         const priorityMatch = priority[row["Priority"]];
@@ -403,10 +412,10 @@ const handleKeywordsFlag =()=>{
             ) 
           : true; // Skip keyword matching if flag is off
   
-        return searchMatch && ( resourceMatch ?? true)  && statusMatch && priorityMatch && keywordMatch;
+        return searchMatch && ( resourceMatch ?? true) && (tagMatch ?? true ) && statusMatch && priorityMatch && keywordMatch;
       });
     }
-  }, [searchText,searchResourceText, status, keywordsFlag, focusFlag, myData, priority]);
+  }, [searchText,searchResourceText,searchTagText, status, keywordsFlag, focusFlag, myData, priority]);
   
   // Update the filtered data in the effect hook
   useEffect(() => {
@@ -561,20 +570,28 @@ const handleKeywordsFlag =()=>{
       <div style={{ direction: table.options.columnResizeDirection }}>
         <div className="h-4" />
         <input
-        className="border border-1 rounded-md border-blue-400 p-2 my-2 mr-4"
+        className="border border-1 rounded-md border-blue-400 p-2 my-2 mr-2"
         type="text"
         placeholder="Search Anything..."
         value={searchText}
         onChange={(e) => setSearchText(e.target.value)}
       />
       <input
-        className="border border-1 rounded-md border-blue-400 p-2 my-2"
+        className="border border-1 rounded-md border-blue-400 p-2 ml-2"
         type="text"
         placeholder="Search by Resource..."
         value={searchResourceText}
         onChange={(e) => setSearchResourceText(e.target.value)}
       />
-      <span className="ml-2 text-sm">** will show blank resources as well</span>
+
+      <input
+        className="border border-1 rounded-md border-blue-400 p-2 ml-2"
+        type="text"
+        placeholder="Search by Tags..."
+        value={searchTagText}
+        onChange={(e) => setSearchTagText(e.target.value)}
+      />
+      <span className="ml-2 text-sm">** will show blank resources or tags as well</span>
       <div className="h-2"/>
       <div className="flex flex-row space-x-4 my-2">
         {
@@ -641,6 +658,7 @@ const handleKeywordsFlag =()=>{
       {/* <button onClick={downloadExcel} className="border border-2 text-gray-500 bg-red-200">Copy to Clipboard</button> */}
       <p>Searched Total : {filteredData.length} out of which Active Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New" || ele["State"] === "In Progress" || ele["State"] === "Assigned")).length}</p>
       <p>New Total : {filteredData.filter((ele,idx)=>(ele["State"] === "New")).length}</p>
+      <p>New ANZ : {filteredData.filter((ele)=>(ele["State"] === "New" && (ele["Tags"] ==="" || ele["Tags"] === "ANZ"))).length} , New Israel : {filteredData.filter((ele)=>(ele["State"] === "New" && (ele["Tags"].toLowerCase().includes("israel")))).length} , New Saudi : {filteredData.filter((ele)=>(ele["State"] === "New" && (ele["Tags"].toLowerCase().includes("saudi")))).length} , New UAE : {filteredData.filter((ele)=>(ele["State"] === "New" && (ele["Tags"].toLowerCase().includes("uae")))).length} </p>
       <p>Assigned Total : {filteredData.filter((ele,idx)=>(ele["State"] === "Assigned")).length}</p>
       <p>WIP Total : {filteredData.filter((ele,idx)=>(ele["State"] === "In Progress")).length}</p>
       <p>Resolved/Closed Total : {filteredData.filter((ele,idx)=>(ele["State"] === "Resolved" || ele["State"] === "Closed")).length}</p>
