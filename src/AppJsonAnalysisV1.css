@@ -1,20 +1,18 @@
 table {
     border-collapse: collapse;
-    width: 100%;
+    margin: 20px auto;
+    font-size: 16px;
+    text-align: left;
   }
   
   th,
   td {
-    text-align: left;
+    border: 1px solid #ddd;
     padding: 8px;
   }
   
   th {
     background-color: #f4f4f4;
-  }
-  
-  div {
-    overflow-x: auto;
-    overflow-y: auto;
+    color: #333;
   }
   

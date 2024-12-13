@@ -1,609 +1,1370 @@
-// import "./App.css";
-import * as XLSX from "xlsx";
-import { format, getTime, parse } from "date-fns"; // Importing for date formatting
-import { FixedSizeList as List } from "react-window";
+import React, { useState, useEffect, useMemo} from 'react';
 
-import React, { useEffect, useState, useMemo } from "react";
+const outboundData = [
+  {"requestHeader":{"channelName":"","countryCode":"6135","dateTime":"2024-08-29T07:30:46","messageId":"A9858E26-139E-46E1-9651-F984A3FBBF80","receiverId":"DHLAU","senderId":"SOLVENTUMDHLANZ"},"sOHeader":{"companyType":"","contactName":"Purchasing Team","contactPhone":"","customerAccountNumber":"6135C000183","customersOrderReference":"PO-19569","deliveryAddressCity":"STEPNEY","deliveryAddressCode":"","deliveryAddressCountryName":"","deliveryAddressCountryRegionId":"AU","deliveryAddressName":"CITY DENTAL SUPPLIES","deliveryAddressState":"SA","deliveryAddressStreet1":"3/1-7 UNION STREET STEPNEY CENTRE","deliveryAddressStreet2":"","deliveryAddressStreet3":"","deliveryAddressStreet4":"","deliveryAddressZipCode":"5069","deliveryModeCode":"RF","documentPrinting":"","email":"RICK@CITYDENTALSUPPLIES.COM.AU","invoiceWithGoods":1,"legalEntityCode":"6135","orderPriority":"10","orderTransmissionDate":"2024-08-29","orderType":"SO","orderUniqueReference":"AUA-0001990-01","pod":"","requestedReceiptDate":"2024-08-27","requestedShippingDate":"2024-08-27","salesOrderNumber":"AUA-0001990-01","shippingWareHouseId":"GS1","sOLines":[{"currencyCode":"","customerShelfDays":0,"itemInstructions":"","itemNumber":"70201027953","lineCreationSequenceNumber":0,"lineDescription":"Stainless Steel Primary Molar Crown E-LL-3 Pkt 2","lineNumber":7,"orderedSalesQuantity":2.0,"productStatus":"AL","requestedReceiptDate":"2024-08-27","salesOrderNumber":"AUA-0001990","salesPrice":0.0,"salesUnitSymbol":"","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"currencyCode":"","customerShelfDays":0,"itemInstructions":"","itemNumber":"70201028134","lineCreationSequenceNumber":0,"lineDescription":"Stainless Steel Primary Molar Crown E-UR-3 Pkt 2","lineNumber":8,"orderedSalesQuantity":1.0,"productStatus":"AL","requestedReceiptDate":"2024-08-27","salesOrderNumber":"AUA-0001990","salesPrice":0.0,"salesUnitSymbol":"","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"currencyCode":"","customerShelfDays":0,"itemInstructions":"","itemNumber":"70201028159","lineCreationSequenceNumber":0,"lineDescription":"Stainless Steel Primary Molar Crown E-UR-5 Pkt 2","lineNumber":9,"orderedSalesQuantity":3.0,"productStatus":"AL","requestedReceiptDate":"2024-08-27","salesOrderNumber":"AUA-0001990","salesPrice":0.0,"salesUnitSymbol":"","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"currencyCode":"","customerShelfDays":0,"itemInstructions":"","itemNumber":"70201022434","lineCreationSequenceNumber":0,"lineDescription":"Filtek Z250 Universal Restorative Capsules A3","lineNumber":10,"orderedSalesQuantity":4.0,"productStatus":"AL","requestedReceiptDate":"2024-08-27","salesOrderNumber":"AUA-0001990","salesPrice":0.0,"salesUnitSymbol":"","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"currencyCode":"","customerShelfDays":0,"itemInstructions":"","itemNumber":"70201056572","lineCreationSequenceNumber":0,"lineDescription":"Clinpro Tooth Creme 0.21% Fluoride Vanilla Mint 113g","lineNumber":11,"orderedSalesQuantity":24.0,"productStatus":"AL","requestedReceiptDate":"2024-08-27","salesOrderNumber":"AUA-0001990","salesPrice":0.0,"salesUnitSymbol":"","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]}],"specialHandlingCodes":"","specialInstructionsCustomer":"CITYDENTAL@E-ACCESS.COM.AU PH: 08 8362 7611 FAX :08 8362 83","specialInstructionsWH":"","status":""}}
+,
 
-
-import TanstackReactTable from "./TanstackReactTable";
-import TanstackReactTableResizing from "./TanstackReactTableResizing";
-
-const keywords = ["high", "critical", "urgent", "important", "emergency"];
-const Tabs = () => {
-  const [activeTab, setActiveTab] = useState("historyTickets");
-  const [firstLevelTab, setFirstLevelTab] = useState("yesterday");
-  const [loading, setLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [data, setData] = useState({
-    yesterday: [],
-    dayBeforeYesterday: [],
-    threeDaysAgo: [],
-  });
-  //const [searchText,setSearchText] = useState('Lex');
-
-
-  // const handleChange = (e) =>{
-  //   setSearchText(e.target.value);
-  //   //setData(data.filter((ele,idx)=> Object.values(ele).toLowerCase().includes(searchText.toLowerCase())));
-  //   // return data[firstLevelTab].filter((ele,idx)=>{
-  //   //   return ele.toLowerCase().includes(searchText.toLowerCase());
-  //   // })
-  // }
-  const chunkSize = 10000;
-
-  const handleFileUpload = (event, tabName) => {
-    if (loadingProgress !== 0) {
-      setLoadingProgress(0);
-    }
-    const file = event.target.files[0];
-    const reader = new FileReader();
-
-    setLoading(true);
-
-    reader.onload = (e) => {
-      const binaryStr = e.target.result;
-      const workbook = XLSX.read(binaryStr, { type: "binary" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      let jsonData = XLSX.utils.sheet_to_json(worksheet);
-
-      jsonData = jsonData.map((row) => ({
-        ...row,
-        ...(row.Opened && { Opened : excelSerialToDate(row.Opened)}),
-        ...(row.Updated && { Updated : excelSerialToDate(row.Updated)}),
-        ...(row.Resolved && { Resolved : excelSerialToDate(row.Resolved)}),
-        //...(row.Date && { Date: formatDate(row.Date) }),
-        //...(row.Duration && { Duration: formatTime(row.Duration) }),
-      }));
-
-      // setData((prevData) => ({
-      //   ...prevData,
-      //   [tabName]: jsonData,
-      // }));
-      // setLoading(false);
-
-      // chunk the data
-
-      //console.log("JSON DATA", jsonData);
-      processChunks(jsonData, tabName);
-    };
-
-    reader.readAsArrayBuffer(file);
-  };
-
-  const processChunks = (jsonData, tabName) => {
-    const chunks = [];
-
-    //  console.log(now)
-    //const date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000);
-    //return date.toLocaleDateString();
-
-    // break data into chunks
-    //console.time("Creating Chunks");
-
-    for (let i = 0; i < jsonData.length; i += chunkSize) {
-      const chunk = jsonData.slice(i, i + chunkSize);
-      chunks.push(chunk);
-    }
-   // console.timeEnd("Creating Chunks");
-    //console.log("chunks data", chunks, chunks.length);
-
-    const processChunk = (index) => {
-      if (index >= chunks.length) {
-        setLoading(false);
-        return;
+{"requestHeader":{"channelName":"","countryCode":"6135","dateTime":"2024-08-08T03:50:54","messageId":"54DE714D-BE5F-4BF6-9257-2E12E4CAAA6A","receiverId":"DHLAU","senderId":"SOLVENTUMDHLANZ"},"sOHeader":{"companyType":"","contactName":"Purchasing Team","contactPhone":"","customerAccountNumber":"6135C000351","customersOrderReference":"3M050824","deliveryAddressCity":"ISLINGTON","deliveryAddressCode":"","deliveryAddressCountryRegionId":"AU","deliveryAddressName":"INDEPENDENT DENTAL SUPPLIES PL","deliveryAddressState":"NSW","deliveryAddressStreet1":"105-107 FERN STREET","deliveryAddressStreet2":"","deliveryAddressStreet3":"","deliveryAddressStreet4":"","deliveryAddressZipCode":"2296","deliveryModeCode":"RF","documentPrinting":"","email":"ORDERS@INDEPENDENTDENTAL.COM.AU","invoiceWithGoods":1,"legalEntityCode":"6135","orderPriority":"10","orderTransmissionDate":"2024-08-08","orderType":"SO","orderUniqueReference":"AUA-0000091-01","pod":"","requestedReceiptDate":"2024-08-07","requestedShippingDate":"2024-08-07","salesOrderNumber":"AUA-0000091-01","shippingWareHouseId":"GS1","sOLines":[{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201408807","lineCreationSequenceNumber":0,"lineDescription":"3700T SUPREME FLOW TIPS 20G","lineNumber":1,"orderedSalesQuantity":40.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201409797","lineCreationSequenceNumber":0,"lineDescription":"3700T-100 SUPREME FLOW TIPS 20G","lineNumber":2,"orderedSalesQuantity":20.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70200523929","lineCreationSequenceNumber":0,"lineDescription":"2382C SOF-LEX XT THIN DISC 1/2 IN","lineNumber":3,"orderedSalesQuantity":60.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70200523945","lineCreationSequenceNumber":0,"lineDescription":"2382F SOF-LEX XT THIN DISC 1/2 IN","lineNumber":4,"orderedSalesQuantity":30.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70200523887","lineCreationSequenceNumber":0,"lineDescription":"2381C SOF-LEX XT THIN DISC 3/8 INC","lineNumber":5,"orderedSalesQuantity":50.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70200523937","lineCreationSequenceNumber":0,"lineDescription":"2382M SOF-LEX XT THIN DISC 1/2 IN","lineNumber":6,"orderedSalesQuantity":40.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70200480989","lineCreationSequenceNumber":0,"lineDescription":"1982C SOF LEX POP ON DISC 1/2 IN 85","lineNumber":7,"orderedSalesQuantity":40.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201406918","lineCreationSequenceNumber":0,"lineDescription":"6555A3 FILTEK UNIVERSAL SYR 4G","lineNumber":12,"orderedSalesQuantity":10.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201022277","lineCreationSequenceNumber":0,"lineDescription":"3M FILTEK Z250 UNIVERSAL SYRINGE, 6020A3","lineNumber":13,"orderedSalesQuantity":20.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201022285","lineCreationSequenceNumber":0,"lineDescription":"3M FILTEK Z250 UNIVERSAL SYR, 6020A3.5","lineNumber":14,"orderedSalesQuantity":10.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201076372","lineCreationSequenceNumber":0,"lineDescription":"5914A3B FILTEK SUPREME XTE SYRINGE","lineNumber":15,"orderedSalesQuantity":20.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201076380","lineCreationSequenceNumber":0,"lineDescription":"5914A3.5B FILTEK SUPREME XTE SYRINGE","lineNumber":16,"orderedSalesQuantity":20.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201076364","lineCreationSequenceNumber":0,"lineDescription":"5914A2B FILTEK SUPREME XTE SYRINGE","lineNumber":17,"orderedSalesQuantity":20.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"UU009805498","lineCreationSequenceNumber":0,"lineDescription":"56944 RETRACTION PASTE REFILL PACK (25)","lineNumber":20,"orderedSalesQuantity":5.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]},{"customerShelfDays":0,"itemInstructions":"","itemNumber":"70201022426","lineCreationSequenceNumber":0,"lineDescription":"6021A2 Z250 FILTEK UNIVERSAL CAPSULE","lineNumber":21,"orderedSalesQuantity":10.0,"productStatus":"AL","requestedReceiptDate":"2024-08-07","salesOrderNumber":"AUA-0000091","sOBatchDetails":[{"batchedOrderQuantity":0.0,"itemBatchNumber":""}],"sOSerialDetails":[{"serialNumber":""}]}],"specialHandlingCodes":"","specialInstructionsCustomer":"ORDERS@INDEPENDENTDENTAL.COM.AU FAX 02 4969 5180 PH: 02 494","specialInstructionsWH":"","status":""}}
+,
+{
+  "requestHeader": {
+    "channelName": "",
+    "countryCode": "6135",
+    "dateTime": "2024-08-08T03:50:54",
+    "messageId": "54DE714D-BE5F-4BF6-9257-2E12E4CAAA6A",
+    "receiverId": "DHLAU",
+    "senderId": "SOLVENTUMDHLANZ"
+  },
+  "sOHeader": {
+    "companyType": "",
+    "contactName": "Purchasing Team",
+    "contactPhone": "",
+    "customerAccountNumber": "6135C000351",
+    "customersOrderReference": "3M050824",
+    "deliveryAddressCity": "ISLINGTON",
+    "deliveryAddressCode": "",
+    "deliveryAddressCountryRegionId": "AU",
+    "deliveryAddressName": "INDEPENDENT DENTAL SUPPLIES PL",
+    "deliveryAddressState": "NSW",
+    "deliveryAddressStreet1": "105-107 FERN STREET",
+    "deliveryAddressStreet2": "",
+    "deliveryAddressStreet3": "",
+    "deliveryAddressStreet4": "",
+    "deliveryAddressZipCode": "2296",
+    "deliveryModeCode": "RF",
+    "documentPrinting": "",
+    "email": "ORDERS@INDEPENDENTDENTAL.COM.AU",
+    "invoiceWithGoods": 1,
+    "legalEntityCode": "6135",
+    "orderPriority": "10",
+    "orderTransmissionDate": "2024-08-08",
+    "orderType": "SO",
+    "orderUniqueReference": "AUA-0000091-02",
+    "pod": "",
+    "requestedReceiptDate": "2024-08-07",
+    "requestedShippingDate": "2024-08-07",
+    "salesOrderNumber": "AUA-0000091-02",
+    "shippingWareHouseId": "GS1",
+    "sOLines": [
+      {
+        "customerShelfDays": 0,
+        "itemInstructions": "",
+        "itemNumber": "70201408807",
+        "lineCreationSequenceNumber": 0,
+        "lineDescription": "3700T SUPREME FLOW TIPS 20G",
+        "lineNumber": 1,
+        "orderedSalesQuantity": 21,
+        "productStatus": "AL",
+        "requestedReceiptDate": "2024-08-07",
+        "salesOrderNumber": "AUA-0000091",
+        "sOBatchDetails": [
+          {
+            "batchedOrderQuantity": 0,
+            "itemBatchNumber": ""
+          }
+        ],
+        "sOSerialDetails": [
+          {
+            "serialNumber": ""
+          }
+        ]
+      },
+      
+      
+      {
+        "customerShelfDays": 0,
+        "itemInstructions": "",
+        "itemNumber": "70200523937",
+        "lineCreationSequenceNumber": 0,
+        "lineDescription": "2382M SOF-LEX XT THIN DISC 1/2 IN",
+        "lineNumber": 6,
+        "orderedSalesQuantity": 13,
+        "productStatus": "AL",
+        "requestedReceiptDate": "2024-08-07",
+        "salesOrderNumber": "AUA-0000091",
+        "sOBatchDetails": [
+          {
+            "batchedOrderQuantity": 13,
+            "itemBatchNumber": "Dummy1"
+          }
+        ],
+        "sOSerialDetails": [
+          {
+            "serialNumber": ""
+          }
+        ]
+      },
+      
+      {
+        "customerShelfDays": 0,
+        "itemInstructions": "",
+        "itemNumber": "70201406918",
+        "lineCreationSequenceNumber": 0,
+        "lineDescription": "6555A3 FILTEK UNIVERSAL SYR 4G",
+        "lineNumber": 12,
+        "orderedSalesQuantity": 3,
+        "productStatus": "AL",
+        "requestedReceiptDate": "2024-08-07",
+        "salesOrderNumber": "AUA-0000091",
+        "sOBatchDetails": [
+          {
+            "batchedOrderQuantity": 0,
+            "itemBatchNumber": ""
+          }
+        ],
+        "sOSerialDetails": [
+          {
+            "serialNumber": ""
+          }
+        ]
+      },
+      
+     
+      
+      {
+        "customerShelfDays": 0,
+        "itemInstructions": "",
+        "itemNumber": "70201076364",
+        "lineCreationSequenceNumber": 0,
+        "lineDescription": "5914A2B FILTEK SUPREME XTE SYRINGE",
+        "lineNumber": 17,
+        "orderedSalesQuantity": 8,
+        "productStatus": "AL",
+        "requestedReceiptDate": "2024-08-07",
+        "salesOrderNumber": "AUA-0000091",
+        "sOBatchDetails": [
+          {
+            "batchedOrderQuantity": 0,
+            "itemBatchNumber": ""
+          }
+        ],
+        "sOSerialDetails": [
+          {
+            "serialNumber": ""
+          }
+        ]
+      },
+     
+      {
+        "customerShelfDays": 0,
+        "itemInstructions": "",
+        "itemNumber": "70201022426",
+        "lineCreationSequenceNumber": 0,
+        "lineDescription": "6021A2 Z250 FILTEK UNIVERSAL CAPSULE",
+        "lineNumber": 21,
+        "orderedSalesQuantity": 9,
+        "productStatus": "AL",
+        "requestedReceiptDate": "2024-08-07",
+        "salesOrderNumber": "AUA-0000091",
+        "sOBatchDetails": [
+          {
+            "batchedOrderQuantity": 0,
+            "itemBatchNumber": ""
+          }
+        ],
+        "sOSerialDetails": [
+          {
+            "serialNumber": ""
+          }
+        ]
       }
-
-      setData((prevData) => ({
-        ...prevData,
-        [tabName]: [...prevData[tabName], ...chunks[index]],
-      }));
-      //console.log("index", index);
-      //setLoadProgress((index / chunks.length) * 100);
-      setLoadingProgress(Math.round((index / chunks.length) * 100000) / 1000);
-      //console.log("%progress : ", loadProgress);
-      // continue processing next chunk
-      setTimeout(() => processChunk(index + 1), 1000); // use a small chunk to unblock UI
-    };
-
-    processChunk(0); // start processing first chunk
-  };
-
-  const excelSerialToDate = (serial) => {
-    
-    const excelStartDate = new Date(Date.UTC(1899,11,30));
-    const millisecondsPerDay = 24*60*60*1000;
-
-    const date = new Date(excelStartDate.getTime() + serial*millisecondsPerDay);
-    //console.log(serial,date);
-    return date.toLocaleDateString();
+    ],
+    "specialHandlingCodes": "",
+    "specialInstructionsCustomer": "ORDERS@INDEPENDENTDENTAL.COM.AU FAX 02 4969 5180 PH: 02 494",
+    "specialInstructionsWH": "",
+    "status": ""
   }
+}
+];
 
-  const formatDateTime = (dateTimeString) => {
-    console.log(dateTimeString,dateTimeString.toLocaleDateString,dateTimeString.toLocaleTimeString);
-    const [datePart, timePart] = dateTimeString.split(' ');
-    
-    // Format Date
-    const [day, month, year] = datePart.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-    const formattedDate = date.toLocaleDateString();
-  
-    // Format Time
-    const [hours, minutes, seconds] = timePart.split(':').map(Number);
-    const formattedTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-  
-    return { formattedDate, formattedTime };
-  };
-
-  const formatDate = (serial) => {
-    const excelEpoch = new Date(1899, 11, 30);
-    const days = Math.floor(serial);
-    const date = new Date(excelEpoch.getTime() + days * 24 * 60 * 60 * 1000);
-    return date.toLocaleDateString();
-  };
-
-  const formatTime = (serial) => {
-    const totalSeconds = Math.round(86400 * serial);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-      2,
-      "0"
-    )}:${String(seconds).padStart(2, "0")}`;
-  };
-
-  // Row renderer function for react-window
-  const Row = ({ index, style }) => {
-    const row = data[firstLevelTab][index];
-    return (
-      <div style={style} className="flex">
-        {Object.values(row).map((val, idx) => (
-          <div
-            key={idx}
-            className="px-6 py-4 text-sm text-gray-900 whitespace-nowrap"
-          >
-            {val}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const columnHeaders = data[firstLevelTab].length
-    ? Object.keys(data[firstLevelTab][0])
-    : [];
-
-  const groupWorkNotesByDate = (workNotesString) => {
-    const workNotes = [];
-    const regex = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/g; // Regex to match the timestamp
-    let matches;
-    let currentIndex = 0;
-
-    //console.log("check before", workNotesString);
-    // Loop through each match (each timestamp)
-    while ((matches = regex.exec(workNotesString)) !== null) {
-      // Capture the first note before the first timestamp (if it's the first iteration)
-      if (currentIndex === 0 && matches.index !== 0) {
-        workNotes.push(workNotesString.substring(0, matches.index).trim());
+const inboundData = [{"requestHeader":{"channelName":"","countryCode":"6135","dateTime":"/Date(1725607844000)/","messageId":"ed350450-6c21-11ef-902b-0a580a830043","receiverId":"SOLVENTUMDHLANZ","senderId":"DHLAU"},"sOPackingSlipHeader":{"carrierId":"","conNoteNumber":"DSC4439827","deliveryAddressCity":"","deliveryAddressCountryRegionId":"","deliveryAddressName":"","deliveryAddressStreet":"","deliveryAddressZipCode":"","deliveryModeCode":"DH1","legalEntityCode":"6135","orderType":"","orderUniqueReference":"132906","salesId":"AUA-0001990-01","shipDate":"2024-09-06","sOPackingSlipLine":[{"delivered":"0","description":"","item":"70201022434","lineNumber":10,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":2,"batchExpiryDate":"2027-05-09","batchProductStatus":"AL","itemBatchNumber":"10982892"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201056572","lineNumber":11,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":24,"batchExpiryDate":"2026-11-06","batchProductStatus":"AL","itemBatchNumber":"11098"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201027953","lineNumber":7,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":2,"batchExpiryDate":"2034-08-01","batchProductStatus":"AL","itemBatchNumber":"11050161"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201028159","lineNumber":9,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":3,"batchExpiryDate":"2034-06-14","batchProductStatus":"AL","itemBatchNumber":"10982550"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201028134","lineNumber":8,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":1,"batchExpiryDate":"2034-08-01","batchProductStatus":"AL","itemBatchNumber":"11036010"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"}]}}
+,
+{"requestHeader":{"channelName":"","countryCode":"6135","dateTime":"/Date(1723182479000)/","messageId":"eeb31ad0-5612-11ef-88eb-0a580a810049","receiverId":"SOLVENTUMDHLANZ","senderId":"DHLAU"},"sOPackingSlipHeader":{"carrierId":"","conNoteNumber":"","deliveryAddressCity":"","deliveryAddressCountryRegionId":"","deliveryAddressName":"","deliveryAddressStreet":"","deliveryAddressZipCode":"","deliveryModeCode":"","legalEntityCode":"6135","orderType":"","orderUniqueReference":"96506","salesId":"AUA-0000091-01","shipDate":"2024-08-09","sOPackingSlipLine":[{"delivered":"0","description":"","item":"70201408807","lineNumber":1,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":7,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"10855906"},{"batchedOrderQuantity":22,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"10951696"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201406918","lineNumber":12,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":10,"batchExpiryDate":"2026-11-08","batchProductStatus":"AL","itemBatchNumber":"10956355"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201022285","lineNumber":14,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":10,"batchExpiryDate":"2027-03-16","batchProductStatus":"AL","itemBatchNumber":"10915755"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201022277","lineNumber":13,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":10,"batchExpiryDate":"2027-03-04","batchProductStatus":"AL","itemBatchNumber":"10893130"},{"batchedOrderQuantity":10,"batchExpiryDate":"2027-03-16","batchProductStatus":"AL","itemBatchNumber":"10933786"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201076372","lineNumber":15,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":20,"batchExpiryDate":"2027-04-23","batchProductStatus":"AL","itemBatchNumber":"10968626"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201076380","lineNumber":16,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":20,"batchExpiryDate":"2027-04-23","batchProductStatus":"AL","itemBatchNumber":"10968608"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201409797","lineNumber":2,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":10,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"10956666"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201076364","lineNumber":17,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":16,"batchExpiryDate":"2027-04-23","batchProductStatus":"AL","itemBatchNumber":"10968690"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"UU009805498","lineNumber":20,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":5,"batchExpiryDate":"2026-04-17","batchProductStatus":"AL","itemBatchNumber":"11060286"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201022426","lineNumber":21,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":10,"batchExpiryDate":"2027-03-16","batchProductStatus":"AL","itemBatchNumber":"10905914"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70200523929","lineNumber":3,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":54,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"10999533"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70200523945","lineNumber":4,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":30,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"10878370"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70200523887","lineNumber":5,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":50,"batchExpiryDate":"2029-12-31","batchProductStatus":"AL","itemBatchNumber":"11005211"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70200523937","lineNumber":6,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":20,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"10896473"},{"batchedOrderQuantity":20,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"11088069"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70200480989","lineNumber":7,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":1,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"10872658"},{"batchedOrderQuantity":39,"batchExpiryDate":"2099-12-31","batchProductStatus":"AL","itemBatchNumber":"11061332"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"}]}}
+,
+{
+  "requestHeader": {
+    "channelName": "",
+    "countryCode": "6135",
+    "dateTime": "/Date(1723182479000)/",
+    "messageId": "eeb31aw0-5612-11ef-88eb-0a580a810039",
+    "receiverId": "SOLVENTUMDHLANZ",
+    "senderId": "DHLAU"
+  },
+  "sOPackingSlipHeader": {
+    "carrierId": "",
+    "conNoteNumber": "",
+    "deliveryAddressCity": "",
+    "deliveryAddressCountryRegionId": "",
+    "deliveryAddressName": "",
+    "deliveryAddressStreet": "",
+    "deliveryAddressZipCode": "",
+    "deliveryModeCode": "",
+    "legalEntityCode": "6135",
+    "orderType": "",
+    "orderUniqueReference": "96506",
+    "salesId": "AUA-0000091-02",
+    "shipDate": "2024-08-19",
+    "sOPackingSlipLine": [
+      {
+        "delivered": "0",
+        "description": "",
+        "item": "70201408807",
+        "lineNumber": 1,
+        "orderQuantity": 0,
+        "productStatus": "",
+        "sOPackingSlipBatchDetails": [
+          {
+            "batchedOrderQuantity": 3,
+            "batchExpiryDate": "2099-12-31",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "10857906"
+          },
+          {
+            "batchedOrderQuantity": 1,
+            "batchExpiryDate": "2099-12-31",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "1095W696"
+          }
+        ],
+        "sOPackingSlipSerialDetails": [],
+        "warehouse": "GS1"
+      },
+      {
+        "delivered": "0",
+        "description": "",
+        "item": "70201406918",
+        "lineNumber": 12,
+        "orderQuantity": 0,
+        "productStatus": "",
+        "sOPackingSlipBatchDetails": [
+          {
+            "batchedOrderQuantity": 2,
+            "batchExpiryDate": "2026-11-08",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "10956R55"
+          }
+        ],
+        "sOPackingSlipSerialDetails": [],
+        "warehouse": "GS1"
+      },
+      {
+        "delivered": "0",
+        "description": "",
+        "item": "70201076364",
+        "lineNumber": 17,
+        "orderQuantity": 0,
+        "productStatus": "",
+        "sOPackingSlipBatchDetails": [
+          {
+            "batchedOrderQuantity": 4,
+            "batchExpiryDate": "2027-04-23",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "109T8690"
+          }
+        ],
+        "sOPackingSlipSerialDetails": [],
+        "warehouse": "GS1"
+      },
+      {
+        "delivered": "0",
+        "description": "",
+        "item": "70201022426",
+        "lineNumber": 21,
+        "orderQuantity": 0,
+        "productStatus": "",
+        "sOPackingSlipBatchDetails": [
+          {
+            "batchedOrderQuantity": 0,
+            "batchExpiryDate": "",
+            "batchProductStatus": "",
+            "itemBatchNumber": ""
+          }
+        ],
+        "sOPackingSlipSerialDetails": [],
+        "warehouse": "GS1"
+      },
+      {
+        "delivered": "0",
+        "description": "",
+        "item": "70200523937",
+        "lineNumber": 6,
+        "orderQuantity": 0,
+        "productStatus": "",
+        "sOPackingSlipBatchDetails": [
+          {
+            "batchedOrderQuantity": 5,
+            "batchExpiryDate": "2099-12-31",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "10896473"
+          },
+          {
+            "batchedOrderQuantity": 2,
+            "batchExpiryDate": "2099-12-31",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "11088069"
+          },
+          {
+            "batchedOrderQuantity": 2,
+            "batchExpiryDate": "2099-12-31",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "11088069"
+          },
+          {
+            "batchedOrderQuantity": 2,
+            "batchExpiryDate": "2099-12-31",
+            "batchProductStatus": "AL",
+            "itemBatchNumber": "11088069"
+          }
+        ],
+        "sOPackingSlipSerialDetails": [],
+        "warehouse": "GS1"
       }
+    ]
+  }
+}
 
-      // Push the previous note into the array (from the last match to current match)
-      if (currentIndex !== 0) {
-        workNotes.push(
-          workNotesString.substring(currentIndex, matches.index).trim()
-        );
-      }
-      // Update currentIndex to start at this match
-      currentIndex = matches.index;
-    }
+]
 
-    // Push the final note after the last timestamp
-    workNotes.push(workNotesString.substring(currentIndex).trim());
-    //console.log("check 0", workNotes);
 
-    // Group the notes by date
-    // Group the notes by date
-    const notesByDate = {};
-    workNotes.forEach((note) => {
-      const date = note.match(/\d{4}-\d{2}-\d{2}/)?.[0]; // Extract only the date part
-      const content = note.replace(
-        /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - /,
-        ""
-      ); // Remove the timestamp from the content
-      if (date) {
-        if (!notesByDate[date]) {
-          notesByDate[date] = [];
-        }
-        notesByDate[date].push(content); // Group notes by date
-      }
-    });
-    //console.log("check 1", notesByDate);
 
-    // Concatenate notes for each date in the desired format
-    const formattedNotesByDate = {};
-    Object.keys(notesByDate).forEach((date) => {
-      formattedNotesByDate[date] = `${date} :\n` + notesByDate[date].join("\n"); // Date followed by notes on new lines
-    });
-
-    return formattedNotesByDate;
-  };
-
-  const groupAdditionalCommentsByDate = (addlCommentsString) => {
-    const addlComments = [];
-    const regex = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/g; // Regex to match the timestamp
-    let matches;
-    let currentIndex = 0;
-
-    //console.log("check before", workNotesString);
-    // Loop through each match (each timestamp)
-    while ((matches = regex.exec(addlCommentsString)) !== null) {
-      // Capture the first note before the first timestamp (if it's the first iteration)
-      if (currentIndex === 0 && matches.index !== 0) {
-        addlComments.push(addlCommentsString.substring(0, matches.index).trim());
-      }
-
-      // Push the previous note into the array (from the last match to current match)
-      if (currentIndex !== 0) {
-        addlComments.push(
-          addlCommentsString.substring(currentIndex, matches.index).trim()
-        );
-      }
-      // Update currentIndex to start at this match
-      currentIndex = matches.index;
-    }
-
-    // Push the final note after the last timestamp
-    addlComments.push(addlCommentsString.substring(currentIndex).trim());
-    //console.log("check 0", workNotes);
-
-    // Group the notes by date
-    // Group the notes by date
-    const commentsByDate = {};
-    addlComments.forEach((note) => {
-      const date = note.match(/\d{4}-\d{2}-\d{2}/)?.[0]; // Extract only the date part
-      const content = note.replace(
-        /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} - /,
-        ""
-      ); // Remove the timestamp from the content
-      if (date) {
-        if (!commentsByDate[date]) {
-          commentsByDate[date] = [];
-        }
-        commentsByDate[date].push(content); // Group notes by date
-      }
-    });
-    //console.log("check 1", notesByDate);
-
-    // Concatenate notes for each date in the desired format
-    const formattedNotesByDate = {};
-    Object.keys(commentsByDate).forEach((date) => {
-      formattedNotesByDate[date] = `${date} :\n` + commentsByDate[date].join("\n"); // Date followed by notes on new lines
-    });
-
-    return formattedNotesByDate;
-  };
-
-  const modifiedData = data[firstLevelTab].map((ele, idx) => {
-    // const criticalElements = ele["Priority"] === "1 - Critical";
-    // const highElements = ele["Priority"] === "2 - High";
-    // const foundHighElements = keywords.some((eachKeyword) => {
-    //   return ele["Description"]
-    //     .toLowerCase()
-    //     .includes(eachKeyword.toLowerCase());
-    // });
-
-    // Extract text till the first newline, if it exists
-    const firstNewLineIndex = ele["Description"].indexOf("\n");
-
-    if (firstNewLineIndex !== -1) {
-      ele["Short Description"] = ele["Description"].substring(
-        0,
-        firstNewLineIndex
-      );
-    }
-
-    // Handle the case where description starts with "Short description:"
-    const substringSearch = "Short description:";
-    if (ele["Description"].startsWith(substringSearch)) {
-      // Strip the description starting from index 18 (after "Short description:") till the first newline
-      ele["Short Desc"] = ele["Description"].substring(
-        18,
-        // if there is new line or not equal to -1 then strip till first new line ,
-        // if there is no new line or equal to -1 then strip till whole length.
-        firstNewLineIndex !== -1 ? firstNewLineIndex : ele["Description"].length
-      );
-      //console.log("check 0", ele["Short Description"]);
-    }
-
-    // Group Work Notes by date and concatenate them for each day in the required format
-    // console.log("check 4", ele["Work notes"]);
-    let workNoteDate = null;
-    let addlCommentsDate = null;
-    let groupedWorkNotes = null;
-    let groupedAddlComments = null;
-
-    if (ele["Work notes"]) {
-      groupedWorkNotes = groupWorkNotesByDate(ele["Work notes"]);
-
-      // Get the latest date and its concatenated work notes
-      workNoteDate = Object.keys(groupedWorkNotes).sort(
-        (a, b) => new Date(b) - new Date(a)
-      )[0];
-      ele["Latest Note"] = groupedWorkNotes[workNoteDate]; // Add the latest work note to the element
-    }
-
-    // Group Addl Comments by date and concatenate them for each day in the required format
-    // console.log("check 4", ele["Work notes"]);
-    if (ele["Additional comments"]) {
-      //const groupedWorkNotes = groupWorkNotesByDate(ele["Work notes"]);
-      groupedAddlComments = groupAdditionalCommentsByDate(ele["Additional comments"]);
-
-      // Get the latest date and its concatenated work notes
-      addlCommentsDate = Object.keys(groupedAddlComments).sort(
-        (a, b) => new Date(b) - new Date(a)
-      )[0];
-      ele["Latest Comments"] = groupedAddlComments[addlCommentsDate]; // Add the latest work note to the element
-    }
-
-    if (new Date(addlCommentsDate) >= new Date(workNoteDate)) {
-      //console.log(groupedAddlComments)
-      // if(groupedAddlComments === null){
-      //   ele["Final Comments"] = groupedWorkNotes[workNoteDate];
-      // }
-      // else{
-      // If Latest Comments date is greater than or equal to Latest Note date, set Final Comments
-      //ele["Final Comments"] = groupedAddlComments[addlCommentsDate] ?? "Not Found";
-      ele["Final Comments"] = "Better check manually, not found "; //groupedAddlComments[addlCommentsDate]; //(groupedAddlComments === null) ? `Not Found in Comments. But Latest Note as below : ${groupedAddlComments[workNoteDate]}` : groupedAddlComments[addlCommentsDate];
-    
-      //}
-    } else {
-      // Otherwise, set Final Comments to Latest Note
-      ele["Final Comments"] = groupedWorkNotes[workNoteDate];
-    }
-
-    return ele;
-    //return true; //criticalElements || highElements || foundHighElements;
-  });
-
-  // const highPriorityData = highPriorityDataInitial.map((ele, idx) => {
-  //   // Modify the filtered array by stripping the description till the first new line
-  //   const firstNewLineIndex = ele["Description"].indexOf("\n");
-
-  //   if (firstNewLineIndex !== -1) {
-  //     ele["Short Desc"] = ele["Description"].substring(
-  //       18,
-  //       firstNewLineIndex
-  //     );
-  //   }
-  //   return ele;
-  // });
-
+const OutboundDisplayV1 = ({ outboundData }) => {
   return (
     <div>
-      <div className="flex space-x-4 mb-4 ml-4">
-        <button
-          className={`px-4 py-2 font-semibold ${
-            activeTab === "historyTickets"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-200"
-          } rounded-md`}
-          onClick={() => setActiveTab("historyTickets")}
-        >
-          History Tickets
-        </button>
-        <button
-          className={`px-4 py-2 font-semibold ${
-            activeTab === "todayTickets"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-200"
-          } rounded-md`}
-          onClick={() => setActiveTab("todayTickets")}
-        >
-          Today's Tickets
-        </button>
-        <button
-          className={`px-4 py-2 font-semibold ${
-            activeTab === "analysis" ? "bg-blue-500 text-white" : "bg-gray-200"
-          } rounded-md`}
-          onClick={() => setActiveTab("analysis")}
-        >
-          Ticket Analysis
-        </button>
-      </div>
-      {activeTab === "historyTickets" && (
-        <>
-          <div className="flex flex-start ml-2">
-            <div className="flex flex-col space-y-2 p-2">
-              <button
-                className={`px-4 py-2 font-semibold ${
-                  firstLevelTab === "yesterday"
-                    ? "bg-indigo-500 text-white"
-                    : "bg-gray-200"
-                } rounded-md`}
-                onClick={() => setFirstLevelTab("yesterday")}
-              >
-                Yesterday
-              </button>
-              <button
-                className={`px-4 py-2 font-semibold ${
-                  firstLevelTab === "dayBeforeYesterday"
-                    ? "bg-indigo-500 text-white"
-                    : "bg-gray-200"
-                } rounded-md`}
-                onClick={() => setFirstLevelTab("dayBeforeYesterday")}
-              >
-                Day Before Yesterday
-              </button>
-              <button
-                className={`px-4 py-2 font-semibold ${
-                  firstLevelTab === "threeDaysAgo"
-                    ? "bg-indigo-500 text-white"
-                    : "bg-gray-200"
-                } rounded-md`}
-                onClick={() => setFirstLevelTab("threeDaysAgo")}
-              >
-                3 Days Ago
-              </button>
-            </div>
-            {firstLevelTab === "yesterday" && (
-              <>
-                <div className="flex flex-col w-[80%]">
-                  <div className="mx-2 my-2">
-                    {/* File Upload */}
-                    <div>
-                      <h2 className="text-md font-semibold mb-4">
-                        Yesterday Upload Excel File
-                      </h2>
-                      <input
-                        type="file"
-                        accept=".xlsx, .xls"
-                        onChange={(e) => handleFileUpload(e, firstLevelTab)}
-                        className="mb-2 p-2 border rounded-lg"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    {/*loading in Progress*/}
-                    {loading && (
-                      <div className="text-center my-4">
-                        <div className="loader border-t-4 border-blue-400 border-solid rounded-full w-8 h-8 animate-spin mx-auto"></div>
+      <h2>Outbound Orders</h2>
+      {outboundData && outboundData.length > 0 ? (
+        outboundData.map((order, orderIndex) => (
+          <div key={orderIndex} style={{ border: '1px solid #ccc', marginBottom: '20px', padding: '10px' }}>
+            <h3>Outbound Order: {order.sOHeader.salesOrderNumber}</h3>
+            
+            <section>
+              <h4>Request Header</h4>
+              <p><strong>Channel Name:</strong> {order.requestHeader.channelName}</p>
+              <p><strong>Country Code:</strong> {order.requestHeader.countryCode}</p>
+              <p><strong>Date Time:</strong> {order.requestHeader.dateTime}</p>
+              <p><strong>Message ID:</strong> {order.requestHeader.messageId}</p>
+              <p><strong>Receiver ID:</strong> {order.requestHeader.receiverId}</p>
+              <p><strong>Sender ID:</strong> {order.requestHeader.senderId}</p>
+            </section>
 
-                        <p>
-                          Loading Yesterday data, please wait...
-                          {loadingProgress}%
-                        </p>
-                        {/* )} */}
-                      </div>
-                    )}
+            <section>
+              <h4>Sales Order Header</h4>
+              <p><strong>Customer Account Number:</strong> {order.sOHeader.customerAccountNumber}</p>
+              <p><strong>Order Reference:</strong> {order.sOHeader.customersOrderReference}</p>
+              <p><strong>Delivery Address Name:</strong> {order.sOHeader.deliveryAddressName}</p>
+              <p><strong>Delivery Address Street1:</strong> {order.sOHeader.deliveryAddressStreet1}</p>
+              <p><strong>City:</strong> {order.sOHeader.deliveryAddressCity}</p>
+              <p><strong>State:</strong> {order.sOHeader.deliveryAddressState}</p>
+              <p><strong>Zip:</strong> {order.sOHeader.deliveryAddressZipCode}</p>
+              <p><strong>Country Region ID:</strong> {order.sOHeader.deliveryAddressCountryRegionId}</p>
+              <p><strong>Order Transmission Date:</strong> {order.sOHeader.orderTransmissionDate}</p>
+              <p><strong>Requested Receipt Date:</strong> {order.sOHeader.requestedReceiptDate}</p>
+              <p><strong>Sales Order Number:</strong> {order.sOHeader.salesOrderNumber}</p>
+              <p><strong>Warehouse ID:</strong> {order.sOHeader.shippingWareHouseId}</p>
+              <p><strong>Email:</strong> {order.sOHeader.email}</p>
+            </section>
 
-                    {/* Display Table with react-window */}
-                    {!loading && data[firstLevelTab].length > 0 && (
-                      <div className="flex flex-col justify-start mt-4">
-                        <h3 className="text-md font-semibold mb-3">
-                          Yesterday Excel Data:
-                        </h3>
-                        {/* Render the column headers */}
-                        <div className="flex border-b bg-gray-100">
-                          {columnHeaders.map((header, idx) => (
-                            <div
-                              key={idx}
-                              className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                            >
-                              {header}
-                            </div>
-                          ))}
-                        </div>
-                        <List
-                          height={400}
-                          itemCount={data[firstLevelTab].length}
-                          itemSize={50}
-                          width={"100%"}
-                          className="border rounded-lg"
-                        >
-                          {Row}
-                        </List>
-                      </div>
-                    )}
-
-                    {/* <TanstackReactTable myData={data[firstLevelTab]} /> */}
-
-                    <TanstackReactTableResizing 
-                    //myData={data[firstLevelTab]} 
-                    myData={modifiedData}
-                    //handleChange={handleChange} 
-                    //searchText={searchText} 
-                    
-                    />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {firstLevelTab === "dayBeforeYesterday" && (
-              <>
-                <div className="flex flex-col w-[80%]">
-                  <div className="mx-2 my-2">
-                    {/* File Upload */}
-                    <div>
-                      <h2 className="text-md font-semibold mb-4">
-                        Day Before Yesterday Upload Excel File
-                      </h2>
-                      <input
-                        type="file"
-                        accept=".xlsx, .xls"
-                        onChange={(e) => handleFileUpload(e, firstLevelTab)}
-                        className="mb-2 p-2 border rounded-lg"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    {/*loading in Progress*/}
-                    {loading && (
-                      <div className="text-center my-4">
-                        <div className="loader border-t-4 border-blue-400 border-solid rounded-full w-8 h-8 animate-spin mx-auto"></div>
-
-                        <p>
-                          Loading Day Before Yesterday data, please wait...
-                          {loadingProgress}%
-                        </p>
-                        {/* )} */}
-                      </div>
-                    )}
-
-                    {/* Display Table with react-window */}
-                    {!loading && data[firstLevelTab].length > 0 && (
-                      <div className="flex flex-col justify-start mt-4">
-                        <h3 className="text-md font-semibold mb-3">
-                          Day Before Yesterday Excel Data:
-                        </h3>
-                        <List
-                          height={400}
-                          itemCount={data[firstLevelTab].length}
-                          itemSize={50}
-                          width={"100%"}
-                          className="border rounded-lg"
-                        >
-                          {Row}
-                        </List>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+            <section>
+              <h4>Sales Order Lines</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000' }}>Line #</th>
+                    <th style={{ border: '1px solid #000' }}>Item Number</th>
+                    <th style={{ border: '1px solid #000' }}>Description</th>
+                    <th style={{ border: '1px solid #000' }}>Ordered Qty</th>
+                    <th style={{ border: '1px solid #000' }}>Requested Receipt Date</th>
+                    <th style={{ border: '1px solid #000' }}>Sales Order Number</th>
+                    <th style={{ border: '1px solid #000' }}>Status</th>
+                    <th style={{ border: '1px solid #000' }}>Sales Unit Symbol</th>
+                    <th style={{ border: '1px solid #000' }}>Batch Details</th>
+                    <th style={{ border: '1px solid #000' }}>Serial Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.sOHeader.sOLines && order.sOHeader.sOLines.map((line, lineIndex) => (
+                    <tr key={lineIndex}>
+                      <td style={{ border: '1px solid #000' }}>{line.lineNumber}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.itemNumber}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.lineDescription}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.orderedSalesQuantity}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.requestedReceiptDate}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.salesOrderNumber}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.productStatus}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.salesUnitSymbol}</td>
+                      <td style={{ border: '1px solid #000' }}>
+                        {line.sOBatchDetails && line.sOBatchDetails.length > 0 ? (
+                          <ul>
+                            {line.sOBatchDetails.map((batch, batchIndex) => (
+                              <li key={batchIndex}>
+                                <strong>Qty:</strong> {batch.batchedOrderQuantity}, <strong>Batch#:</strong> {batch.itemBatchNumber || 'N/A'}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : 'No batch details'}
+                      </td>
+                      <td style={{ border: '1px solid #000' }}>
+                        {line.sOSerialDetails && line.sOSerialDetails.length > 0 ? (
+                          <ul>
+                            {line.sOSerialDetails.map((serial, serialIndex) => (
+                              <li key={serialIndex}>
+                                {serial.serialNumber || 'No Serial Number'}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : 'No serial details'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
           </div>
-        </>
-      )}
-
-      {activeTab === "todayTickets" && (
-        <>
-          <div className="ml-4">
-            <p> This is today ticket tab</p>
-          </div>
-        </>
-      )}
-
-      {activeTab === "analysis" && (
-        <>
-          <div className="ml-4">
-            <p>Analysis</p>
-          </div>
-        </>
+        ))
+      ) : (
+        <p>No outbound orders found.</p>
       )}
     </div>
   );
 };
 
-function App() {
+const OutboundDisplay = ({ outboundData }) => {
   return (
-    <>
-      <div className="mt-4">
-        <Tabs />
-      </div>
-    </>
+    <div>
+      <h2>Outbound Orders</h2>
+      {outboundData && outboundData.length > 0 ? (
+        outboundData.map((order, orderIndex) => (
+          <div key={orderIndex} style={{ border: '1px solid #ccc', marginBottom: '20px', padding: '10px' }}>
+            <h3>Outbound Order: {order.sOHeader.orderUniqueReference}</h3>
+            
+            <section>
+              <h4>Request Header</h4>
+              <p><strong>Message ID:</strong> {order.requestHeader.messageId}</p>
+              <p><strong>Country Code:</strong> {order.requestHeader.countryCode}</p>
+              <p><strong>Sender ID:</strong> {order.requestHeader.senderId}</p>
+              <p><strong>Receiver ID:</strong> {order.requestHeader.receiverId}</p>
+              <p><strong>Date Time:</strong> {order.requestHeader.dateTime}</p>
+            </section>
+
+            <section>
+              <h4>Sales Order Header</h4>
+              <p><strong>Order Unique Reference:</strong> {order.sOHeader.orderUniqueReference}</p>
+              <p><strong>Sales Order Number:</strong> {order.sOHeader.salesOrderNumber}</p>
+              <p><strong>Requested Receipt Date:</strong> {order.sOHeader.requestedReceiptDate}</p>
+              <p><strong>Customer Account Number:</strong> {order.sOHeader.customerAccountNumber}</p>
+              <p><strong>Email:</strong> {order.sOHeader.email}</p>
+            </section>
+
+            <section>
+              <h4>Sales Order Lines</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000' }}>Line #</th>
+                    <th style={{ border: '1px solid #000' }}>Item Number</th>
+                    <th style={{ border: '1px solid #000' }}>Description</th>
+                    <th style={{ border: '1px solid #000' }}>Ordered Qty</th>
+                    <th style={{ border: '1px solid #000' }}>Requested Receipt Date</th>
+                    <th style={{ border: '1px solid #000' }}>Product Status</th>
+                    <th style={{ border: '1px solid #000' }}>Batch Details</th>
+                    <th style={{ border: '1px solid #000' }}>Serial Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.sOHeader.sOLines && order.sOHeader.sOLines.map((line, lineIndex) => (
+                    <tr key={lineIndex}>
+                      <td style={{ border: '1px solid #000' }}>{line.lineNumber}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.itemNumber}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.lineDescription}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.orderedSalesQuantity}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.requestedReceiptDate}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.productStatus}</td>
+                      <td style={{ border: '1px solid #000' }}>
+                        {line.sOBatchDetails && line.sOBatchDetails.length > 0 ? (
+                          <ul>
+                            {line.sOBatchDetails.map((batch, batchIndex) => (
+                              <li key={batchIndex}>
+                                Qty: {batch.batchedOrderQuantity}, Batch#: {batch.itemBatchNumber || 'N/A'}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : 'No batch details'}
+                      </td>
+                      <td style={{ border: '1px solid #000' }}>
+                        {line.sOSerialDetails && line.sOSerialDetails.length > 0 ? (
+                          <ul>
+                            {line.sOSerialDetails.map((serial, serialIndex) => (
+                              <li key={serialIndex}>{serial.serialNumber || 'No Serial'}</li>
+                            ))}
+                          </ul>
+                        ) : 'No serial details'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          </div>
+        ))
+      ) : (
+        <p>No outbound orders found.</p>
+      )}
+    </div>
   );
+};
+
+
+
+const InboundDisplay = ({ inboundData }) => {
+  return (
+    <div>
+      <h2>Inbound Packing Slips</h2>
+      {inboundData && inboundData.length > 0 ? (
+        inboundData.map((pack, packIndex) => (
+          <div key={packIndex} style={{ border: '1px solid #ccc', marginBottom: '20px', padding: '10px' }}>
+            <h3>Inbound Packing Slip: {pack.sOPackingSlipHeader.salesId}</h3>
+
+            <section>
+              <h4>Request Header</h4>
+              <p><strong>Message ID:</strong> {pack.requestHeader.messageId}</p>
+              <p><strong>Country Code:</strong> {pack.requestHeader.countryCode}</p>
+              <p><strong>Sender ID:</strong> {pack.requestHeader.senderId}</p>
+              <p><strong>Receiver ID:</strong> {pack.requestHeader.receiverId}</p>
+              <p><strong>Date Time:</strong> {pack.requestHeader.dateTime}</p>
+            </section>
+
+            <section>
+              <h4>Packing Slip Header</h4>
+              <p><strong>Sales ID (Unique Ref):</strong> {pack.sOPackingSlipHeader.salesId}</p>
+              <p><strong>Ship Date:</strong> {pack.sOPackingSlipHeader.shipDate}</p>
+              <p><strong>Legal Entity Code:</strong> {pack.sOPackingSlipHeader.legalEntityCode}</p>
+            </section>
+
+            <section>
+              <h4>Packing Slip Lines</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000' }}>Line #</th>
+                    <th style={{ border: '1px solid #000' }}>Item</th>
+                    <th style={{ border: '1px solid #000' }}>Delivered</th>
+                    <th style={{ border: '1px solid #000' }}>Batch Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pack.sOPackingSlipHeader.sOPackingSlipLine && pack.sOPackingSlipHeader.sOPackingSlipLine.map((line, lineIndex) => (
+                    <tr key={lineIndex}>
+                      <td style={{ border: '1px solid #000' }}>{line.lineNumber}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.item}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.delivered}</td>
+                      <td style={{ border: '1px solid #000' }}>
+                        {line.sOPackingSlipBatchDetails && line.sOPackingSlipBatchDetails.length > 0 ? (
+                          <ul>
+                            {line.sOPackingSlipBatchDetails.map((batch, batchIndex) => (
+                              <li key={batchIndex}>
+                                Qty: {batch.batchedOrderQuantity}, Batch#: {batch.itemBatchNumber}, Expiry: {batch.batchExpiryDate}, Status: {batch.batchProductStatus}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : 'No batch details'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          </div>
+        ))
+      ) : (
+        <p>No inbound packing slips found.</p>
+      )}
+    </div>
+  );
+};
+
+
+const InboundDisplayV1 = ({ inboundData }) => {
+  return (
+    <div>
+      <h2>Inbound Packing Slips</h2>
+      {inboundData && inboundData.length > 0 ? (
+        inboundData.map((pack, packIndex) => (
+          <div key={packIndex} style={{ border: '1px solid #ccc', marginBottom: '20px', padding: '10px' }}>
+            <h3>Inbound Packing Slip for Order: {pack.sOPackingSlipHeader.salesId}</h3>
+
+            <section>
+              <h4>Request Header</h4>
+              <p><strong>Channel Name:</strong> {pack.requestHeader.channelName}</p>
+              <p><strong>Country Code:</strong> {pack.requestHeader.countryCode}</p>
+              <p><strong>Date Time:</strong> {pack.requestHeader.dateTime}</p>
+              <p><strong>Message ID:</strong> {pack.requestHeader.messageId}</p>
+              <p><strong>Receiver ID:</strong> {pack.requestHeader.receiverId}</p>
+              <p><strong>Sender ID:</strong> {pack.requestHeader.senderId}</p>
+            </section>
+
+            <section>
+              <h4>Packing Slip Header</h4>
+              <p><strong>Sales ID (Order Number):</strong> {pack.sOPackingSlipHeader.salesId}</p>
+              <p><strong>Order Unique Reference:</strong> {pack.sOPackingSlipHeader.orderUniqueReference}</p>
+              <p><strong>Ship Date:</strong> {pack.sOPackingSlipHeader.shipDate}</p>
+              <p><strong>Delivery Mode Code:</strong> {pack.sOPackingSlipHeader.deliveryModeCode}</p>
+              <p><strong>Legal Entity Code:</strong> {pack.sOPackingSlipHeader.legalEntityCode}</p>
+            </section>
+
+            <section>
+              <h4>Packing Slip Lines</h4>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000' }}>Line #</th>
+                    <th style={{ border: '1px solid #000' }}>Item</th>
+                    <th style={{ border: '1px solid #000' }}>Delivered</th>
+                    <th style={{ border: '1px solid #000' }}>Warehouse</th>
+                    <th style={{ border: '1px solid #000' }}>Batch Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pack.sOPackingSlipHeader.sOPackingSlipLine && pack.sOPackingSlipHeader.sOPackingSlipLine.map((line, lineIndex) => (
+                    <tr key={lineIndex}>
+                      <td style={{ border: '1px solid #000' }}>{line.lineNumber}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.item}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.delivered}</td>
+                      <td style={{ border: '1px solid #000' }}>{line.warehouse}</td>
+                      <td style={{ border: '1px solid #000' }}>
+                        {line.sOPackingSlipBatchDetails && line.sOPackingSlipBatchDetails.length > 0 ? (
+                          <ul>
+                            {line.sOPackingSlipBatchDetails.map((batch, batchIndex) => (
+                              <li key={batchIndex}>
+                                <strong>Qty:</strong> {batch.batchedOrderQuantity}, 
+                                <strong>Batch#:</strong> {batch.itemBatchNumber}, 
+                                <strong>Expiry:</strong> {batch.batchExpiryDate}, 
+                                <strong>Status:</strong> {batch.batchProductStatus}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : 'No batch details'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          </div>
+        ))
+      ) : (
+        <p>No inbound packing slips found.</p>
+      )}
+    </div>
+  );
+};
+
+
+
+const Comparison = ({ outboundData, inboundData }) => {
+  // Create a map for all inbound lines keyed by "salesId-lineNumber"
+  const inboundMap = useMemo(() => {
+    const map = {};
+    inboundData.forEach(pack => {
+      const salesId = pack.sOPackingSlipHeader.salesId; // e.g., AUA-0000091-02
+      pack.sOPackingSlipHeader.sOPackingSlipLine.forEach(inLine => {
+        const key = `${salesId}-${inLine.lineNumber}`;
+        map[key] = inLine;
+      });
+    });
+    return map;
+  }, [inboundData]);
+
+  return (
+    <div>
+      <h2>Outbound vs Inbound Comparison</h2>
+      {outboundData && outboundData.length > 0 ? (
+        outboundData.map((order, orderIndex) => {
+          const orderUniqueRef = order.sOHeader.orderUniqueReference;  // e.g., AUA-0000091-02
+          return (
+            <div key={orderIndex} style={{ border: '1px solid #ccc', marginBottom: '20px', padding: '10px' }}>
+              <h3>Comparing Order: {orderUniqueRef}</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000' }}>Line #</th>
+                    <th style={{ border: '1px solid #000' }}>Item</th>
+                    <th style={{ border: '1px solid #000' }}>Outbound Qty</th>
+                    <th style={{ border: '1px solid #000' }}>Inbound Total Qty</th>
+                    <th style={{ border: '1px solid #000' }}>Difference</th>
+                    <th style={{ border: '1px solid #000' }}>Inbound Batch Breakdown</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.sOHeader.sOLines && order.sOHeader.sOLines.map((outLine, lineIndex) => {
+                    // Key by the unique reference and line number
+                    const key = `${orderUniqueRef}-${outLine.lineNumber}`;
+                    const inboundLine = inboundMap[key];
+
+                    let inboundTotal = 0;
+                    let inboundBatches = [];
+                    if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
+                      inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+                      inboundTotal = inboundBatches.reduce((sum, b) => sum + b.batchedOrderQuantity, 0);
+                    }
+
+                    const difference = outLine.orderedSalesQuantity - inboundTotal;
+
+                    return (
+                      <tr key={lineIndex}>
+                        <td style={{ border: '1px solid #000' }}>{outLine.lineNumber}</td>
+                        <td style={{ border: '1px solid #000' }}>{outLine.itemNumber}</td>
+                        <td style={{ border: '1px solid #000' }}>{outLine.orderedSalesQuantity}</td>
+                        <td style={{ border: '1px solid #000' }}>{inboundTotal}</td>
+                        <td style={{ border: '1px solid #000', color: difference === 0 ? 'green' : 'red' }}>
+                          {difference}
+                        </td>
+                        <td style={{ border: '1px solid #000' }}>
+                          {inboundBatches.length > 0 ? (
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={{ border: '1px solid #000' }}>Batch #</th>
+                                  <th style={{ border: '1px solid #000' }}>Qty</th>
+                                  <th style={{ border: '1px solid #000' }}>Expiry</th>
+                                  <th style={{ border: '1px solid #000' }}>Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {inboundBatches.map((batch, bIndex) => (
+                                  <tr key={bIndex}>
+                                    <td style={{ border: '1px solid #000' }}>{batch.itemBatchNumber}</td>
+                                    <td style={{ border: '1px solid #000' }}>{batch.batchedOrderQuantity}</td>
+                                    <td style={{ border: '1px solid #000' }}>{batch.batchExpiryDate}</td>
+                                    <td style={{ border: '1px solid #000' }}>{batch.batchProductStatus}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : 'No inbound batch data'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })
+      ) : (
+        <p>No outbound orders found for comparison.</p>
+      )}
+    </div>
+  );
+};
+
+
+
+
+const ComparisonV1 = ({ outboundData, inboundData }) => {
+  // Create a map for inbound lines:
+  // Key format: `${salesId}-${lineNumber}` for inbound
+  const inboundMap = useMemo(() => {
+    const map = {};
+    inboundData.forEach(pack => {
+      const salesId = pack.sOPackingSlipHeader.salesId; // This corresponds to outbound salesOrderNumber
+      pack.sOPackingSlipHeader.sOPackingSlipLine.forEach(inLine => {
+        const key = `${salesId}-${inLine.lineNumber}`;
+        // If multiple batches exist for the same line, we combine them here.
+        // We'll store the entire inbound line data for easy reference.
+        map[key] = inLine;
+      });
+    });
+    return map;
+  }, [inboundData]);
+
+  return (
+    <div>
+      <h2>Outbound vs Inbound Comparison</h2>
+      {outboundData && outboundData.length > 0 ? (
+        outboundData.map((order, orderIndex) => {
+          const salesOrderNumber = order.sOHeader.salesOrderNumber; 
+          return (
+            <div key={orderIndex} style={{ border: '1px solid #ccc', marginBottom: '20px', padding: '10px' }}>
+              <h3>Comparing Order: {salesOrderNumber}</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={{ border: '1px solid #000' }}>Line #</th>
+                    <th style={{ border: '1px solid #000' }}>Item Number</th>
+                    <th style={{ border: '1px solid #000' }}>Outbound Qty</th>
+                    <th style={{ border: '1px solid #000' }}>Inbound Total Qty</th>
+                    <th style={{ border: '1px solid #000' }}>Difference</th>
+                    <th style={{ border: '1px solid #000' }}>Inbound Batch Breakdown</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.sOHeader.sOLines && order.sOHeader.sOLines.map((outLine, lineIndex) => {
+                    const key = `${salesOrderNumber}-${outLine.lineNumber}`;
+                    const inboundLine = inboundMap[key];
+
+                    // Calculate inbound total from sOPackingSlipBatchDetails:
+                    let inboundTotal = 0;
+                    let inboundBatches = [];
+                    if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
+                      inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+                      inboundTotal = inboundBatches.reduce((sum, b) => sum + b.batchedOrderQuantity, 0);
+                    }
+
+                    const difference = outLine.orderedSalesQuantity - inboundTotal;
+
+                    return (
+                      <tr key={lineIndex}>
+                        <td style={{ border: '1px solid #000' }}>{outLine.lineNumber}</td>
+                        <td style={{ border: '1px solid #000' }}>{outLine.itemNumber}</td>
+                        <td style={{ border: '1px solid #000' }}>{outLine.orderedSalesQuantity}</td>
+                        <td style={{ border: '1px solid #000' }}>{inboundTotal}</td>
+                        <td style={{ border: '1px solid #000', color: difference !== 0 ? 'red' : 'green' }}>
+                          {difference}
+                        </td>
+                        <td style={{ border: '1px solid #000' }}>
+                          {inboundBatches.length > 0 ? (
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={{ border: '1px solid #000' }}>Batch #</th>
+                                  <th style={{ border: '1px solid #000' }}>Qty</th>
+                                  <th style={{ border: '1px solid #000' }}>Expiry Date</th>
+                                  <th style={{ border: '1px solid #000' }}>Batch Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {inboundBatches.map((b, bIndex) => (
+                                  <tr key={bIndex}>
+                                    <td style={{ border: '1px solid #000' }}>{b.itemBatchNumber}</td>
+                                    <td style={{ border: '1px solid #000' }}>{b.batchedOrderQuantity}</td>
+                                    <td style={{ border: '1px solid #000' }}>{b.batchExpiryDate}</td>
+                                    <td style={{ border: '1px solid #000' }}>{b.batchProductStatus}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : 'No inbound batch data'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })
+      ) : (
+        <p>No outbound orders found for comparison.</p>
+      )}
+    </div>
+  );
+};
+
+
+
+const ComplexComparisonV1 = ({ outboundData, inboundData, actualQuantities }) => {
+  // actualQuantities is an object keyed by (salesOrderNumber-lineNumber-itemNumber)
+  // e.g., actualQuantities["AUA-0000091-1-70201408807"] = 70
+  // If you don't have it yet, you can hardcode or pass a default.
+
+  // 1. Build an inbound map for quick lookup
+  const inboundMap = useMemo(() => {
+    const map = {};
+    inboundData.forEach(pack => {
+      const salesId = pack.sOPackingSlipHeader.salesId; // e.g. AUA-0000091-01 or AUA-0000091-02
+      pack.sOPackingSlipHeader.sOPackingSlipLine.forEach(inLine => {
+        const key = `${salesId}-${inLine.lineNumber}`;
+        map[key] = inLine;
+      });
+    });
+    return map;
+  }, [inboundData]);
+
+  // 2. Group outbound lines by (salesOrderNumber, lineNumber, itemNumber)
+  // Structure:
+  // groupedData = {
+  //   "AUA-0000091-1-70201408807": {
+  //       salesOrderNumber: "AUA-0000091",
+  //       lineNumber: 1,
+  //       itemNumber: "70201408807",
+  //       outbounds: [
+  //          { orderUniqueReference: "AUA-0000091-01", orderedSalesQuantity: 40, ... , inboundBatches: [...], inboundTotal: ... , difference: ... },
+  //          { orderUniqueReference: "AUA-0000091-02", orderedSalesQuantity: 21, ... , inboundBatches: [...], inboundTotal: ... , difference: ... }
+  //       ]
+  //   }
+  // }
+
+  const groupedData = useMemo(() => {
+    const group = {};
+    outboundData.forEach(order => {
+      const baseSalesOrderNumber = order.sOHeader.salesOrderNumber;  // e.g. AUA-0000091-02
+      const orderUniqueRef = order.sOHeader.orderUniqueReference;    // e.g. AUA-0000091-02
+      order.sOHeader.sOLines.forEach(line => {
+        const { lineNumber, itemNumber, orderedSalesQuantity, sOBatchDetails, sOSerialDetails, productStatus } = line;
+        
+        // For the grouping, we use the BASE sales order number from the outbound line.
+        // Note: The outbound line might show salesOrderNumber = "AUA-0000091" (base), 
+        // but sOHeader orderUniqueReference = "AUA-0000091-02".
+        // We'll use sOHeader.salesOrderNumber as the "base" order number
+        // (If needed, confirm which field is the correct "base" number.)
+        
+        // Let's assume the "Sales Order No" column is the base from sOHeader.salesOrderNumber
+        const salesOrderNo = order.sOHeader.salesOrderNumber.split('-')[0]; // "AUA-0000091"
+        const key = `${salesOrderNo}-${lineNumber}-${itemNumber}`;
+        
+        if (!group[key]) {
+          group[key] = {
+            salesOrderNumber: salesOrderNo,
+            lineNumber,
+            itemNumber,
+            outbounds: []
+          };
+        }
+
+        // Find inbound line match
+        const inboundKey = `${orderUniqueRef}-${lineNumber}`;
+        const inboundLine = inboundMap[inboundKey];
+        
+        let inboundTotal = 0;
+        let inboundBatches = [];
+        if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
+          inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+          inboundTotal = inboundBatches.reduce((sum, b) => sum + b.batchedOrderQuantity, 0);
+        }
+
+        const difference = orderedSalesQuantity - inboundTotal;
+
+        group[key].outbounds.push({
+          orderUniqueReference: orderUniqueRef,
+          orderedSalesQuantity,
+          outboundBatchDetails: sOBatchDetails,
+          outboundSerialDetails: sOSerialDetails,
+          productStatus,
+          inboundTotal,
+          difference,
+          inboundBatches
+        });
+      });
+    });
+    return group;
+  }, [outboundData, inboundMap]);
+
+  // We'll create a single table with all data.
+  // For each group (Sales Order No, Line#, Item#):
+  // - Print one big row group:
+  //   - First we print the "Sales Order No", "Line #", "Item Number", "SO Line Actual Qty" in a cell that spans all outbounds for this group.
+  //   - Then for each outbound line in the group, we print one or multiple rows depending on inbound batches.
+  //   - The first row for that outbound line will show Outbound Ref, Outbound Ordered Qty, etc.
+  //   - If multiple inbound batches, subsequent rows show only inbound batch details.
+
+  // Helper to get SO line actual qty:
+  // If not provided, we can hardcode or default to a known value.
+  const getActualQty = (salesOrderNumber, lineNumber, itemNumber) => {
+    const key = `${salesOrderNumber}-${lineNumber}-${itemNumber}`;
+    return actualQuantities && actualQuantities[key] != null ? actualQuantities[key] : 'N/A';
+  };
+
+  // Convert groupedData to an array for iteration
+  const groupArray = Object.values(groupedData);
+
+  return (
+    <div>
+      <h2>Complex Comparison Table</h2>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ border: '1px solid #000' }}>Sales Order No</th>
+            <th style={{ border: '1px solid #000' }}>Line #</th>
+            <th style={{ border: '1px solid #000' }}>Item Number</th>
+            <th style={{ border: '1px solid #000' }}>SO Line Actual Qty</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Ref</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Ordered Qty</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Batch Details</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Serial Details</th>
+            <th style={{ border: '1px solid #000' }}>Inbound Total Qty</th>
+            <th style={{ border: '1px solid #000' }}>Difference</th>
+            <th style={{ border: '1px solid #000' }}>Batch #</th>
+            <th style={{ border: '1px solid #000' }}>Qty</th>
+            <th style={{ border: '1px solid #000' }}>Expiry</th>
+            <th style={{ border: '1px solid #000' }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groupArray.map((group, groupIndex) => {
+            const { salesOrderNumber, lineNumber, itemNumber, outbounds } = group;
+            // Determine the total row span for the leftmost four columns
+            // Each outbound line may have multiple inbound batches
+            // We sum the maximum inbound batches rows for each outbound line.
+            // Sort outbounds by lineNumber if needed (they might already share the same lineNumber)
+            // But if multiple lineNumber sets existed, we can still sort.
+            // Here we only have one lineNumber per group, so just in case:
+            //outbounds.sort((a, b) => a.lineNumber - b.lineNumber);
+
+            let totalRowsForGroup = 0;
+            const lineRowDetails = outbounds.map(ob => {
+              const batchCount = ob.inboundBatches.length || 1; // at least 1 row if no batches
+              return { ...ob, batchCount };
+            });
+
+            totalRowsForGroup = lineRowDetails.reduce((sum, ob) => sum + ob.batchCount, 0);
+
+            const soLineActualQty = getActualQty(salesOrderNumber, lineNumber, itemNumber);
+
+            let accumulatedRows = 0;
+
+            return (
+              <React.Fragment key={groupIndex}>
+                {lineRowDetails.map((obLine, obLineIndex) => {
+                  const { orderUniqueReference, orderedSalesQuantity, outboundBatchDetails, outboundSerialDetails, inboundTotal, difference, inboundBatches, batchCount } = obLine;
+
+                  // For the outbound batches and serial details, format them as strings
+                  const outboundBatchStr = outboundBatchDetails && outboundBatchDetails.length > 0
+                    ? outboundBatchDetails.map(b => `Qty: ${b.batchedOrderQuantity}, Batch#: ${b.itemBatchNumber || 'N/A'}`).join(' | ')
+                    : 'No batch details';
+
+                  const outboundSerialStr = outboundSerialDetails && outboundSerialDetails.length > 0
+                    ? outboundSerialDetails.map(s => s.serialNumber || 'No Serial').join(', ')
+                    : 'No Serial';
+
+                  // We'll print the first inbound batch row in the same line as the outbound details
+                  // Additional inbound batches will appear in subsequent rows with blanks in outbound columns.
+
+                  return inboundBatches.length > 0 ? (
+                    inboundBatches.map((batch, batchIndex) => {
+                      // Determine if we print the left group columns and outbound columns on this row
+                      // The very first row of the entire group prints the main grouping columns
+                      // But we need the grouping columns only at the top row of the group.
+                      const isFirstRowOfGroup = (obLineIndex === 0 && batchIndex === 0);
+                      // We print SalesOrderNumber, Line#, Item#, SO Line Actual Qty only on the first row of the group
+                      const printGroupColumns = isFirstRowOfGroup;
+                      
+                      // For outbound columns:
+                      // Print them only on the first batch row of this outbound line
+                      const printOutboundColumns = (batchIndex === 0);
+
+                      return (
+                        <tr key={`${obLineIndex}-${batchIndex}`} style={{ border: '1px solid #000' }}>
+                          {printGroupColumns ? (
+                            <>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{salesOrderNumber}</td>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{lineNumber}</td>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{itemNumber}</td>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{soLineActualQty}</td>
+                            </>
+                          ) : null}
+
+                          {printOutboundColumns ? (
+                            <>
+                              <td style={{ border: '1px solid #000' }}>{orderUniqueReference}</td>
+                              <td style={{ border: '1px solid #000' }}>{orderedSalesQuantity}</td>
+                              <td style={{ border: '1px solid #000' }}>{outboundBatchStr}</td>
+                              <td style={{ border: '1px solid #000' }}>{outboundSerialStr}</td>
+                              <td style={{ border: '1px solid #000' }}>{inboundTotal}</td>
+                              <td style={{ border: '1px solid #000', color: difference !== 0 ? 'red' : 'green' }}>{difference}</td>
+                            </>
+                          ) : (
+                            <>
+                              {/* Blank cells for outbound columns on subsequent batch rows */}
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                            </>
+                          )}
+
+                          {/* Inbound batch breakdown columns */}
+                          <td style={{ border: '1px solid #000' }}>{batch.itemBatchNumber}</td>
+                          <td style={{ border: '1px solid #000' }}>{batch.batchedOrderQuantity}</td>
+                          <td style={{ border: '1px solid #000' }}>{batch.batchExpiryDate}</td>
+                          <td style={{ border: '1px solid #000' }}>{batch.batchProductStatus}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    // No inbound batches, just one row for this outbound line
+                    <tr key={obLineIndex}>
+                      {obLineIndex === 0 ? (
+                        <>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{salesOrderNumber}</td>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{lineNumber}</td>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{itemNumber}</td>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{soLineActualQty}</td>
+                        </>
+                      ) : null}
+                      <td style={{ border: '1px solid #000' }}>{orderUniqueReference}</td>
+                      <td style={{ border: '1px solid #000' }}>{orderedSalesQuantity}</td>
+                      <td style={{ border: '1px solid #000' }}>{outboundBatchStr}</td>
+                      <td style={{ border: '1px solid #000' }}>{outboundSerialStr}</td>
+                      <td style={{ border: '1px solid #000' }}>{inboundTotal}</td>
+                      <td style={{ border: '1px solid #000', color: difference !== 0 ? 'red' : 'green' }}>{difference}</td>
+                      <td style={{ border: '1px solid #000' }}>No inbound batch data</td>
+                      <td style={{ border: '1px solid #000' }}></td>
+                      <td style={{ border: '1px solid #000' }}></td>
+                      <td style={{ border: '1px solid #000' }}></td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const ComplexComparison = ({ outboundData, inboundData, actualQuantities }) => {
+  // actualQuantities is an object keyed by (salesOrderNumber-lineNumber-itemNumber)
+  // e.g., actualQuantities["AUA-0000091-1-70201408807"] = 70
+  // If you don't have it yet, you can hardcode or pass a default.
+
+  // 1. Build an inbound map for quick lookup
+  const inboundMap = useMemo(() => {
+    const map = {};
+    inboundData.forEach(pack => {
+      const salesId = pack.sOPackingSlipHeader.salesId; // e.g. AUA-0000091-01 or AUA-0000091-02
+      pack.sOPackingSlipHeader.sOPackingSlipLine.forEach(inLine => {
+        const key = `${salesId}-${inLine.lineNumber}`;
+        map[key] = inLine;
+      });
+    });
+    return map;
+  }, [inboundData]);
+
+  // 2. Group outbound lines by (salesOrderNumber, lineNumber, itemNumber)
+  // Structure:
+  // groupedData = {
+  //   "AUA-0000091-1-70201408807": {
+  //       salesOrderNumber: "AUA-0000091",
+  //       lineNumber: 1,
+  //       itemNumber: "70201408807",
+  //       outbounds: [
+  //          { orderUniqueReference: "AUA-0000091-01", orderedSalesQuantity: 40, ... , inboundBatches: [...], inboundTotal: ... , difference: ... },
+  //          { orderUniqueReference: "AUA-0000091-02", orderedSalesQuantity: 21, ... , inboundBatches: [...], inboundTotal: ... , difference: ... }
+  //       ]
+  //   }
+  // }
+
+  const groupedData = useMemo(() => {
+    const group = {};
+    outboundData.forEach(order => {
+      const baseSalesOrderNumber = order.sOHeader.salesOrderNumber;  // e.g. AUA-0000091-02
+      const orderUniqueRef = order.sOHeader.orderUniqueReference;    // e.g. AUA-0000091-02
+      order.sOHeader.sOLines.forEach(line => {
+        const { lineNumber, itemNumber, orderedSalesQuantity, sOBatchDetails, sOSerialDetails, productStatus } = line;
+        
+        // For the grouping, we use the BASE sales order number from the outbound line.
+        // Note: The outbound line might show salesOrderNumber = "AUA-0000091" (base), 
+        // but sOHeader orderUniqueReference = "AUA-0000091-02".
+        // We'll use sOHeader.salesOrderNumber as the "base" order number
+        // (If needed, confirm which field is the correct "base" number.)
+        
+        // Let's assume the "Sales Order No" column is the base from sOHeader.salesOrderNumber
+        const salesOrderNo = order.sOHeader.salesOrderNumber.split('-')[0]; // "AUA-0000091"
+        const key = `${salesOrderNo}-${lineNumber}-${itemNumber}`;
+        
+        if (!group[key]) {
+          group[key] = {
+            salesOrderNumber: salesOrderNo,
+            lineNumber,
+            itemNumber,
+            outbounds: []
+          };
+        }
+
+        // Find inbound line match
+        const inboundKey = `${orderUniqueRef}-${lineNumber}`;
+        const inboundLine = inboundMap[inboundKey];
+        
+        let inboundTotal = 0;
+        let inboundBatches = [];
+        if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
+          inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+          inboundTotal = inboundBatches.reduce((sum, b) => sum + b.batchedOrderQuantity, 0);
+        }
+
+        const difference = orderedSalesQuantity - inboundTotal;
+
+        group[key].outbounds.push({
+          orderUniqueReference: orderUniqueRef,
+          orderedSalesQuantity,
+          outboundBatchDetails: sOBatchDetails,
+          outboundSerialDetails: sOSerialDetails,
+          productStatus,
+          inboundTotal,
+          difference,
+          inboundBatches
+        });
+      });
+    });
+    return group;
+  }, [outboundData, inboundMap]);
+
+  // We'll create a single table with all data.
+  // For each group (Sales Order No, Line#, Item#):
+  // - Print one big row group:
+  //   - First we print the "Sales Order No", "Line #", "Item Number", "SO Line Actual Qty" in a cell that spans all outbounds for this group.
+  //   - Then for each outbound line in the group, we print one or multiple rows depending on inbound batches.
+  //   - The first row for that outbound line will show Outbound Ref, Outbound Ordered Qty, etc.
+  //   - If multiple inbound batches, subsequent rows show only inbound batch details.
+
+  // Helper to get SO line actual qty:
+  // If not provided, we can hardcode or default to a known value.
+  const getActualQty = (salesOrderNumber, lineNumber, itemNumber) => {
+    const key = `${salesOrderNumber}-${lineNumber}-${itemNumber}`;
+    return actualQuantities && actualQuantities[key] != null ? actualQuantities[key] : 'N/A';
+  };
+
+  // Convert groupedData to an array for iteration
+  const groupArray = Object.values(groupedData);
+
+  return (
+    <div>
+      <h2>Complex Comparison Table</h2>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ border: '1px solid #000' }}>Sales Order No</th>
+            <th style={{ border: '1px solid #000' }}>Line #</th>
+            <th style={{ border: '1px solid #000' }}>Item Number</th>
+            <th style={{ border: '1px solid #000' }}>SO Line Actual Qty</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Ref</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Ordered Qty</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Batch Details</th>
+            <th style={{ border: '1px solid #000' }}>Outbound Serial Details</th>
+            <th style={{ border: '1px solid #000' }}>Inbound Total Qty</th>
+            <th style={{ border: '1px solid #000' }}>Difference</th>
+            <th style={{ border: '1px solid #000' }}>Batch #</th>
+            <th style={{ border: '1px solid #000' }}>Qty</th>
+            <th style={{ border: '1px solid #000' }}>Expiry</th>
+            <th style={{ border: '1px solid #000' }}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {groupArray.map((group, groupIndex) => {
+            const { salesOrderNumber, lineNumber, itemNumber, outbounds } = group;
+            
+            // *** ADDED THIS LINE ***
+            // Before constructing rows, we sort `outbounds` by lineNumber to ensure ascending order.
+            outbounds.sort((a, b) => a.lineNumber - b.lineNumber); // *** ADDED THIS LINE ***
+
+            // Determine the total row span for the leftmost four columns
+            // Each outbound line may have multiple inbound batches
+            // We sum the maximum inbound batches rows for each outbound line.
+            const lineRowDetails = outbounds.map(ob => {
+              const batchCount = ob.inboundBatches.length || 1; // at least 1 row if no batches
+              return { ...ob, batchCount };
+            });
+
+            const totalRowsForGroup = lineRowDetails.reduce((sum, ob) => sum + ob.batchCount, 0);
+
+            const soLineActualQty = getActualQty(salesOrderNumber, lineNumber, itemNumber);
+
+            return (
+              <React.Fragment key={groupIndex}>
+                {lineRowDetails.map((obLine, obLineIndex) => {
+                  const { orderUniqueReference, orderedSalesQuantity, outboundBatchDetails, outboundSerialDetails, inboundTotal, difference, inboundBatches, batchCount } = obLine;
+
+                  const outboundBatchStr = outboundBatchDetails && outboundBatchDetails.length > 0
+                    ? outboundBatchDetails.map(b => `Qty: ${b.batchedOrderQuantity}, Batch#: ${b.itemBatchNumber || 'N/A'}`).join(' | ')
+                    : 'No batch details';
+
+                  const outboundSerialStr = outboundSerialDetails && outboundSerialDetails.length > 0
+                    ? outboundSerialDetails.map(s => s.serialNumber || 'No Serial').join(', ')
+                    : 'No Serial';
+
+                  return inboundBatches.length > 0 ? (
+                    inboundBatches.map((batch, batchIndex) => {
+                      const isFirstRowOfGroup = (obLineIndex === 0 && batchIndex === 0);
+                      const printGroupColumns = isFirstRowOfGroup;
+                      const printOutboundColumns = (batchIndex === 0);
+
+                      return (
+                        <tr key={`${obLineIndex}-${batchIndex}`} style={{ border: '1px solid #000' }}>
+                          {printGroupColumns ? (
+                            <>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{salesOrderNumber}</td>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{lineNumber}</td>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{itemNumber}</td>
+                              <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{soLineActualQty}</td>
+                            </>
+                          ) : null}
+
+                          {printOutboundColumns ? (
+                            <>
+                              <td style={{ border: '1px solid #000' }}>{orderUniqueReference}</td>
+                              <td style={{ border: '1px solid #000' }}>{orderedSalesQuantity}</td>
+                              <td style={{ border: '1px solid #000' }}>{outboundBatchStr}</td>
+                              <td style={{ border: '1px solid #000' }}>{outboundSerialStr}</td>
+                              <td style={{ border: '1px solid #000' }}>{inboundTotal}</td>
+                              <td style={{ border: '1px solid #000', color: difference !== 0 ? 'red' : 'green' }}>{difference}</td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                              <td style={{ border: '1px solid #000' }}></td>
+                            </>
+                          )}
+
+                          <td style={{ border: '1px solid #000' }}>{batch.itemBatchNumber}</td>
+                          <td style={{ border: '1px solid #000' }}>{batch.batchedOrderQuantity}</td>
+                          <td style={{ border: '1px solid #000' }}>{batch.batchExpiryDate}</td>
+                          <td style={{ border: '1px solid #000' }}>{batch.batchProductStatus}</td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr key={obLineIndex}>
+                      {obLineIndex === 0 ? (
+                        <>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{salesOrderNumber}</td>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{lineNumber}</td>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{itemNumber}</td>
+                          <td style={{ border: '1px solid #000', verticalAlign: 'top' }} rowSpan={totalRowsForGroup}>{soLineActualQty}</td>
+                        </>
+                      ) : null}
+                      <td style={{ border: '1px solid #000' }}>{orderUniqueReference}</td>
+                      <td style={{ border: '1px solid #000' }}>{orderedSalesQuantity}</td>
+                      <td style={{ border: '1px solid #000' }}>{outboundBatchStr}</td>
+                      <td style={{ border: '1px solid #000' }}>{outboundSerialStr}</td>
+                      <td style={{ border: '1px solid #000' }}>{inboundTotal}</td>
+                      <td style={{ border: '1px solid #000', color: difference !== 0 ? 'red' : 'green' }}>{difference}</td>
+                      <td style={{ border: '1px solid #000' }}>No inbound batch data</td>
+                      <td style={{ border: '1px solid #000' }}></td>
+                      <td style={{ border: '1px solid #000' }}></td>
+                      <td style={{ border: '1px solid #000' }}></td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+
+
+
+
+
+
+
+function App(){
+    return(
+    <div>
+      <OutboundDisplay outboundData={outboundData} />
+      <InboundDisplay inboundData={inboundData} />
+      <Comparison outboundData={outboundData} inboundData={inboundData} />
+      <ComplexComparison outboundData={outboundData} inboundData={inboundData} actualQuantities={70}/>
+    </div>)
 }
 
 export default App;
