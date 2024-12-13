@@ -5,6 +5,7 @@ import {
   } from "react-router-dom";
 import MulesoftLog from "./MulesoftLogResizing";
 import AppMulesoft from "./AppMulesoft";
+import AppTicket from "./AppTicket";
 
 const router = createBrowserRouter([
     {
@@ -14,8 +15,12 @@ const router = createBrowserRouter([
       >This is restricted to Solventum related tasks only</div>,
     },
     {
+      path:"/Json",
+      element:<App/>
+  },
+    {
         path :"/tickets",
-        element : <App/>
+        element : <AppTicket/>
     },
     {
         path :"/mulesoft",
