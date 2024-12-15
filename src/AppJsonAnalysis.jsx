@@ -176,175 +176,78 @@ const outboundDataV1 = [
   }
 }
 ];
-const outboundData = [{
-  "requestHeader": {
-    "channelName": "",
-    "countryCode": "6135",
-    "dateTime": "2024-08-08T03:50:54",
-    "messageId": "54DE714D-BE5F-4BF6-9257-2E12E4CAAA6A",
-    "receiverId": "DHLAU",
-    "senderId": "SOLVENTUMDHLANZ"
-  },
-  "sOHeader": {
-    "companyType": "",
-    "contactName": "Purchasing Team",
-    "contactPhone": "",
-    "customerAccountNumber": "6135C000351",
-    "customersOrderReference": "3M050824",
-    "deliveryAddressCity": "ISLINGTON",
-    "deliveryAddressCode": "",
-    "deliveryAddressCountryRegionId": "AU",
-    "deliveryAddressName": "INDEPENDENT DENTAL SUPPLIES PL",
-    "deliveryAddressState": "NSW",
-    "deliveryAddressStreet1": "105-107 FERN STREET",
-    "deliveryAddressStreet2": "",
-    "deliveryAddressStreet3": "",
-    "deliveryAddressStreet4": "",
-    "deliveryAddressZipCode": "2296",
-    "deliveryModeCode": "RF",
-    "documentPrinting": "",
-    "email": "ORDERS@INDEPENDENTDENTAL.COM.AU",
-    "invoiceWithGoods": 1,
-    "legalEntityCode": "6135",
-    "orderPriority": "10",
-    "orderTransmissionDate": "2024-08-08",
-    "orderType": "SO",
-    "orderUniqueReference": "AUA-0000091-02",
-    "pod": "",
-    "requestedReceiptDate": "2024-08-07",
-    "requestedShippingDate": "2024-08-07",
-    "salesOrderNumber": "AUA-0000091-02",
-    "shippingWareHouseId": "GS1",
-    "sOLines": [
-      {
-        "customerShelfDays": 0,
-        "itemInstructions": "",
-        "itemNumber": "70201408807",
-        "lineCreationSequenceNumber": 0,
-        "lineDescription": "3700T SUPREME FLOW TIPS 20G",
-        "lineNumber": 1,
-        "orderedSalesQuantity": 21,
-        "productStatus": "AL",
-        "requestedReceiptDate": "2024-08-07",
-        "salesOrderNumber": "AUA-0000091",
-        "sOBatchDetails": [
-          {
-            "batchedOrderQuantity": 0,
-            "itemBatchNumber": ""
-          }
+const outboundData = [
+  {
+    "requestHeader": {
+        "channelName": "",
+        "countryCode": "6135",
+        "dateTime": "2024-08-15T11:58:29",
+        "messageId": "CC117CD1-FF7C-4480-89CB-BF55EDB1576A",
+        "receiverId": "DHLAU",
+        "senderId": "SOLVENTUMDHLANZ"
+    },
+    "sOHeader": {
+        "companyType": "",
+        "contactName": "",
+        "contactPhone": "61 423 699 535",
+        "customerAccountNumber": "6135C001493",
+        "customersOrderReference": "",
+        "deliveryAddressCity": "MOUNT WAVERLEY",
+        "deliveryAddressCode": "",
+        "deliveryAddressCountryRegionId": "AU",
+        "deliveryAddressName": "Trevor Jones",
+        "deliveryAddressState": "VIC",
+        "deliveryAddressStreet1": "CHEMTRONICS & AWA LTD UNIT 99 AXXES",
+        "deliveryAddressStreet2": "S CORP PARK 45 GILBY ROAD",
+        "deliveryAddressStreet3": "",
+        "deliveryAddressStreet4": "",
+        "deliveryAddressZipCode": "3149",
+        "deliveryModeCode": "RF",
+        "documentPrinting": "",
+        "email": "steve.toovey@solventum.com",
+        "invoiceWithGoods": 1,
+        "legalEntityCode": "6135",
+        "orderPriority": "10",
+        "orderTransmissionDate": "2024-08-15",
+        "orderType": "XO",
+        "orderUniqueReference": "AUA-0000857-01",
+        "pod": "",
+        "requestedReceiptDate": "2024-08-15",
+        "requestedShippingDate": "2024-08-15",
+        "salesOrderNumber": "AUA-0000857-01",
+        "shippingWareHouseId": "GS1",
+        "sOLines": [
+            {
+                "customerShelfDays": 0,
+                "itemInstructions": "",
+                "itemNumber": "70200791815",
+                "lineCreationSequenceNumber": 0,
+                "lineDescription": "90047 FILTER (700S) 0.2 UM HIGH",
+                "lineNumber": 2,
+                "orderedSalesQuantity": 15,
+                "productStatus": "AL",
+                "requestedReceiptDate": "2024-08-15",
+                "salesOrderNumber": "AUA-0000857",
+                "sOBatchDetails": [
+                    {
+                        "batchedOrderQuantity": 0,
+                        "itemBatchNumber": ""
+                    }
+                ],
+                "sOSerialDetails": [
+                    {
+                        "serialNumber": ""
+                    }
+                ]
+            }
         ],
-        "sOSerialDetails": [
-          {
-            "serialNumber": ""
-          }
-        ]
-      },
-      
-      
-      {
-        "customerShelfDays": 0,
-        "itemInstructions": "",
-        "itemNumber": "70200523937",
-        "lineCreationSequenceNumber": 0,
-        "lineDescription": "2382M SOF-LEX XT THIN DISC 1/2 IN",
-        "lineNumber": 6,
-        "orderedSalesQuantity": 13,
-        "productStatus": "AL",
-        "requestedReceiptDate": "2024-08-07",
-        "salesOrderNumber": "AUA-0000091",
-        "sOBatchDetails": [
-          {
-            "batchedOrderQuantity": 13,
-            "itemBatchNumber": "Dummy1"
-          }
-        ],
-        "sOSerialDetails": [
-          {
-            "serialNumber": ""
-          }
-        ]
-      },
-      
-      {
-        "customerShelfDays": 0,
-        "itemInstructions": "",
-        "itemNumber": "70201406918",
-        "lineCreationSequenceNumber": 0,
-        "lineDescription": "6555A3 FILTEK UNIVERSAL SYR 4G",
-        "lineNumber": 12,
-        "orderedSalesQuantity": 3,
-        "productStatus": "AL",
-        "requestedReceiptDate": "2024-08-07",
-        "salesOrderNumber": "AUA-0000091",
-        "sOBatchDetails": [
-          {
-            "batchedOrderQuantity": 0,
-            "itemBatchNumber": ""
-          }
-        ],
-        "sOSerialDetails": [
-          {
-            "serialNumber": ""
-          }
-        ]
-      },
-      
-     
-      
-      {
-        "customerShelfDays": 0,
-        "itemInstructions": "",
-        "itemNumber": "70201076364",
-        "lineCreationSequenceNumber": 0,
-        "lineDescription": "5914A2B FILTEK SUPREME XTE SYRINGE",
-        "lineNumber": 17,
-        "orderedSalesQuantity": 8,
-        "productStatus": "AL",
-        "requestedReceiptDate": "2024-08-07",
-        "salesOrderNumber": "AUA-0000091",
-        "sOBatchDetails": [
-          {
-            "batchedOrderQuantity": 0,
-            "itemBatchNumber": ""
-          }
-        ],
-        "sOSerialDetails": [
-          {
-            "serialNumber": ""
-          }
-        ]
-      },
-     
-      {
-        "customerShelfDays": 0,
-        "itemInstructions": "",
-        "itemNumber": "70201022426",
-        "lineCreationSequenceNumber": 0,
-        "lineDescription": "6021A2 Z250 FILTEK UNIVERSAL CAPSULE",
-        "lineNumber": 21,
-        "orderedSalesQuantity": 9,
-        "productStatus": "AL",
-        "requestedReceiptDate": "2024-08-07",
-        "salesOrderNumber": "AUA-0000091",
-        "sOBatchDetails": [
-          {
-            "batchedOrderQuantity": 0,
-            "itemBatchNumber": ""
-          }
-        ],
-        "sOSerialDetails": [
-          {
-            "serialNumber": ""
-          }
-        ]
-      }
-    ],
-    "specialHandlingCodes": "",
-    "specialInstructionsCustomer": "ORDERS@INDEPENDENTDENTAL.COM.AU FAX 02 4969 5180 PH: 02 494",
-    "specialInstructionsWH": "",
-    "status": ""
-  }
-}]
+        "specialHandlingCodes": "",
+        "specialInstructionsCustomer": "",
+        "specialInstructionsWH": "",
+        "status": ""
+    }
+}
+]
 
 const inboundDataV1 = [{"requestHeader":{"channelName":"","countryCode":"6135","dateTime":"/Date(1725607844000)/","messageId":"ed350450-6c21-11ef-902b-0a580a830043","receiverId":"SOLVENTUMDHLANZ","senderId":"DHLAU"},"sOPackingSlipHeader":{"carrierId":"","conNoteNumber":"DSC4439827","deliveryAddressCity":"","deliveryAddressCountryRegionId":"","deliveryAddressName":"","deliveryAddressStreet":"","deliveryAddressZipCode":"","deliveryModeCode":"DH1","legalEntityCode":"6135","orderType":"","orderUniqueReference":"132906","salesId":"AUA-0001990-01","shipDate":"2024-09-06","sOPackingSlipLine":[{"delivered":"0","description":"","item":"70201022434","lineNumber":10,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":2,"batchExpiryDate":"2027-05-09","batchProductStatus":"AL","itemBatchNumber":"10982892"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201056572","lineNumber":11,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":24,"batchExpiryDate":"2026-11-06","batchProductStatus":"AL","itemBatchNumber":"11098"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201027953","lineNumber":7,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":2,"batchExpiryDate":"2034-08-01","batchProductStatus":"AL","itemBatchNumber":"11050161"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201028159","lineNumber":9,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":3,"batchExpiryDate":"2034-06-14","batchProductStatus":"AL","itemBatchNumber":"10982550"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"},{"delivered":"0","description":"","item":"70201028134","lineNumber":8,"orderQuantity":0,"productStatus":"","sOPackingSlipBatchDetails":[{"batchedOrderQuantity":1,"batchExpiryDate":"2034-08-01","batchProductStatus":"AL","itemBatchNumber":"11036010"}],"sOPackingSlipSerialDetails":[],"warehouse":"GS1"}]}}
 ,
@@ -1137,29 +1040,109 @@ const ComplexComparison = ({ outboundData, inboundData, actualQuantities }) => {
 
 
 
-function ComplexJsonAnalysis({outboundData,inboundData}) {
+function ComplexJsonAnalysis({outboundDataDefault,inboundDataDefault}) {
   const [viewMode, setViewMode] = useState(''); // Track current view
+  const [outboundPayload, setOutboundPayload] = useState('');
+  const [inboundPayload, setInboundPayload] = useState('');
+  const [outboundData, setOutboundData] = useState(outboundDataDefault);
+  const [inboundData, setInboundData] = useState(inboundDataDefault);
+
+
+  const parseJsonPayloadV1 = (payload) => {
+    try {
+      return JSON.parse(payload);
+    } catch (error) {
+      alert('Invalid JSON provided. Please correct it and try again.');
+      return [];
+    }
+  };
+
+  const parseJsonPayload = (payload) => {
+    try {
+      const parsed = JSON.parse(payload);
+      return Array.isArray(parsed) ? parsed : [parsed]; // Ensure data is always an array
+    } catch (error) {
+      alert('Invalid JSON provided. Please correct it and try again.');
+      return [];
+    }
+  };
+  
+
+ 
 
   return (
     <div>
       <h1>App JSON Analysis</h1>
+      {/* Input Fields */}
+      <div style={{ marginBottom: '20px' }}>
+        <h3>Provide Outbound JSON Payload:</h3>
+        <textarea
+          rows="10"
+          cols="80"
+          placeholder="Enter outbound JSON payload here..."
+          value={outboundPayload}
+          onChange={(e) => setOutboundPayload(e.target.value)}
+          style={{ marginBottom: '10px', display: 'block', width: '100%' }}
+        ></textarea>
+        <h3>Provide Inbound JSON Payload:</h3>
+        <textarea
+          rows="10"
+          cols="80"
+          placeholder="Enter inbound JSON payload here..."
+          value={inboundPayload}
+          onChange={(e) => setInboundPayload(e.target.value)}
+          style={{ marginBottom: '10px', display: 'block', width: '100%' }}
+        ></textarea>
+      </div>
       {/* Step 1: Add buttons to select what to view */}
       <div style={{ marginBottom: '10px' }}>
         <button 
           style={{ margin: '5px', padding: '5px 10px' }} 
-          onClick={() => setViewMode('ob')}
+          onClick={() => {
+            const parsedOutbound = outboundPayload
+              ? parseJsonPayload(outboundPayload)
+              : outboundDataDefault; // Fallback to default if empty or invalid
+            if (parsedOutbound !== null) {
+              setOutboundData(parsedOutbound);
+              setViewMode('ob');
+            }
+            
+           }}
         >
           View OB Payload
         </button>
         <button 
           style={{ margin: '5px', padding: '5px 10px' }} 
-          onClick={() => setViewMode('ib')}
+          onClick={() => {
+            const parsedInbound = inboundPayload
+            ? parseJsonPayload(inboundPayload)
+            : inboundDataDefault; // Fallback to default if empty or invalid
+          if (parsedInbound !== null) {
+            setInboundData(parsedInbound);
+            setViewMode('ib');
+          }
+          
+          }}
         >
           View IB Payload
         </button>
         <button 
           style={{ margin: '5px', padding: '5px 10px' }} 
-          onClick={() => setViewMode('both')}
+          onClick={() => {
+            const parsedOutbound = outboundPayload
+              ? parseJsonPayload(outboundPayload)
+              : outboundDataDefault; // Fallback to default if empty or invalid
+            const parsedInbound = inboundPayload
+              ? parseJsonPayload(inboundPayload)
+              : inboundDataDefault; // Fallback to default if empty or invalid
+
+            if (parsedOutbound !== null && parsedInbound !== null) {
+              setOutboundData(parsedOutbound);
+              setInboundData(parsedInbound);
+              setViewMode('both');
+            }
+          
+          }}
         >
           View OB vs IB Payload
         </button>
@@ -1190,7 +1173,7 @@ function ComplexJsonAnalysis({outboundData,inboundData}) {
 }
 
 function AppJsonAnalysis(){
-  return (<ComplexJsonAnalysis outboundData={outboundData} inboundData={inboundData}/>)
+  return (<ComplexJsonAnalysis outboundDataDefault={outboundData} inboundDataDefault={inboundData}/>)
 }
 
 export default AppJsonAnalysis;

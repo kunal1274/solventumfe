@@ -12,6 +12,42 @@ import App3plSoInbound from "./App3plSoInbound";
 import AppComparison from "./App3plSoObVsIb";
 import App3plSoObVsIb from "./App3plSoObVsIb";
 import AppJsonAnalysis from "./AppJsonAnalysis";
+import React from 'react';
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null, errorInfo: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    // Update state to display fallback UI
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    // You can log the error to an external service
+    console.error("ErrorBoundary caught an error", error, errorInfo);
+    this.setState({ error, errorInfo });
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: '20px', border: '1px solid red', color: 'red' }}>
+          <h2>Something went wrong.</h2>
+          <details style={{ whiteSpace: 'pre-wrap' }}>
+            {this.state.error && this.state.error.toString()}
+            <br />
+            {this.state.errorInfo?.componentStack}
+          </details>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 const router = createBrowserRouter([
     {
@@ -26,7 +62,11 @@ const router = createBrowserRouter([
   },
   {
     path:"/log3plsoob",
-    element:<App3plSoOutbound/>
+    element:
+    <ErrorBoundary>
+      <App3plSoOutbound/>
+    </ErrorBoundary>
+    
   },
   {
     path:"/log3plsoib",
