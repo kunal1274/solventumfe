@@ -58,7 +58,7 @@ function parseData(jsonData) {
     messageId: row[msgIdIndex],
     keyField: row[keyFieldIndex],
     responseStatus: row[responseStatusIndex],
-    payloadJson: safeJsonParse(row[payloadJsonIndex]), // Ensure safe JSON parsing
+    payloadJson: row[payloadJsonIndex],
     responseDateTime: row[responseDateIndex],
     csRemarks: csRemarksIndex !== -1 ? row[csRemarksIndex] : '',
     csProgressStatus: csProgressIndex !== -1 ? row[csProgressIndex] : '',
@@ -66,16 +66,6 @@ function parseData(jsonData) {
   }));
 
   return rows.filter(r => r.messageId);
-}
-
-// Safe JSON parsing utility
-function safeJsonParse(jsonString) {
-  try {
-    return JSON.parse(jsonString); // Attempt to parse JSON
-  } catch (error) {
-    console.error("Invalid JSON:", jsonString, error); // Log the error
-    return {}; // Return an empty object for invalid JSON
-  }
 }
 
 function groupByKeyField(data) {
@@ -212,90 +202,7 @@ function compareStates(outState, inState) {
   return 'Unknown combination';
 }
 
-const OutboundDisplay = ({ outboundData }) => {
-    return (
-      <div>
-        <h2>Outbound Orders</h2>
-        {outboundData && outboundData.length > 0 ? (
-          outboundData.map((order, orderIndex) => (
-            <div key={orderIndex} style={{ border: '1px solid #ccc', marginBottom: '20px', padding: '10px' }}>
-              <h3>Outbound Order: {order.sOHeader.orderUniqueReference}</h3>
-              
-              <section>
-                <h4>Request Header</h4>
-                <p><strong>Message ID:</strong> {order.requestHeader.messageId}</p>
-                <p><strong>Country Code:</strong> {order.requestHeader.countryCode}</p>
-                <p><strong>Sender ID:</strong> {order.requestHeader.senderId}</p>
-                <p><strong>Receiver ID:</strong> {order.requestHeader.receiverId}</p>
-                <p><strong>Date Time:</strong> {order.requestHeader.dateTime}</p>
-              </section>
-  
-              <section>
-                <h4>Sales Order Header</h4>
-                <p><strong>Order Unique Reference:</strong> {order.sOHeader.orderUniqueReference}</p>
-                <p><strong>Sales Order Number:</strong> {order.sOHeader.salesOrderNumber}</p>
-                <p><strong>Requested Receipt Date:</strong> {order.sOHeader.requestedReceiptDate}</p>
-                <p><strong>Customer Account Number:</strong> {order.sOHeader.customerAccountNumber}</p>
-                <p><strong>Email:</strong> {order.sOHeader.email}</p>
-              </section>
-  
-              <section>
-                <h4>Sales Order Lines</h4>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ border: '1px solid #000' }}>Line #</th>
-                      <th style={{ border: '1px solid #000' }}>Item Number</th>
-                      <th style={{ border: '1px solid #000' }}>Description</th>
-                      <th style={{ border: '1px solid #000' }}>Ordered Qty</th>
-                      <th style={{ border: '1px solid #000' }}>Requested Receipt Date</th>
-                      <th style={{ border: '1px solid #000' }}>Product Status</th>
-                      <th style={{ border: '1px solid #000' }}>Batch Details</th>
-                      <th style={{ border: '1px solid #000' }}>Serial Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.sOHeader.sOLines && order.sOHeader.sOLines.map((line, lineIndex) => (
-                      <tr key={lineIndex}>
-                        <td style={{ border: '1px solid #000' }}>{line.lineNumber}</td>
-                        <td style={{ border: '1px solid #000' }}>{line.itemNumber}</td>
-                        <td style={{ border: '1px solid #000' }}>{line.lineDescription}</td>
-                        <td style={{ border: '1px solid #000' }}>{line.orderedSalesQuantity}</td>
-                        <td style={{ border: '1px solid #000' }}>{line.requestedReceiptDate}</td>
-                        <td style={{ border: '1px solid #000' }}>{line.productStatus}</td>
-                        <td style={{ border: '1px solid #000' }}>
-                          {line.sOBatchDetails && line.sOBatchDetails.length > 0 ? (
-                            <ul>
-                              {line.sOBatchDetails.map((batch, batchIndex) => (
-                                <li key={batchIndex}>
-                                  Qty: {batch.batchedOrderQuantity}, Batch#: {batch.itemBatchNumber || 'N/A'}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : 'No batch details'}
-                        </td>
-                        <td style={{ border: '1px solid #000' }}>
-                          {line.sOSerialDetails && line.sOSerialDetails.length > 0 ? (
-                            <ul>
-                              {line.sOSerialDetails.map((serial, serialIndex) => (
-                                <li key={serialIndex}>{serial.serialNumber || 'No Serial'}</li>
-                              ))}
-                            </ul>
-                          ) : 'No serial details'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </section>
-            </div>
-          ))
-        ) : (
-          <p>No outbound orders found.</p>
-        )}
-      </div>
-    );
-  };
+
 
 const InboundDisplay = ({ inboundData }) => {
     return (
@@ -720,27 +627,20 @@ const InboundDisplay = ({ inboundData }) => {
 
 
 
-function App3plSoObVsIb() {
+function App3plSoObVsIbBulk() {
   const [outboundData, setOutboundData] = useState([]);
   const [inboundData, setInboundData] = useState([]);
   const [comparisonResults, setComparisonResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [progressMessage, setProgressMessage] = useState('');
   const [wrapLogs, setWrapLogs] = useState(false); // For wrapping logs
-  const [asyncLoading, setAsyncLoading] = useState(false); // Tracks processing or loading state for comparison and wrapping or unwrapping
-  const [isComparing, setIsComparing] = React.useState(false);
-  const [isTogglingWrap, setIsTogglingWrap] = React.useState(false);
 
   // Modal state to display JSON payload
   const [modalContent, setModalContent] = useState(null);
 
-  const [outboundFileName, setOutboundFileName] = useState(null);
-const [inboundFileName, setInboundFileName] = useState(null);
-
   const handleOutboundUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file) setOutboundFileName(file.name);
 
     setLoading(true);
     setProgressMessage('Reading outbound file...');
@@ -749,29 +649,24 @@ const [inboundFileName, setInboundFileName] = useState(null);
     reader.onload = (evt) => {
       setProgressMessage('Parsing outbound data...');
       const binaryStr = evt.target.result;
-      const workbook = XLSX.read(binaryStr, { type: 'array' });
+      const workbook = XLSX.read(binaryStr, { type: 'binary' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      console.log("json data ",jsonData)
 
       setProgressMessage('Analyzing outbound data...');
       const formattedData = parseData(jsonData);
-      //const formattedData = parse
-      console.log("formatted data",formattedData);
       const analysis = analyzeData(formattedData);
       setOutboundData(analysis);
       setLoading(false);
       setProgressMessage('');
     };
-    //reader.readAsBinaryString(file);
-    reader.readAsArrayBuffer(file);
+    reader.readAsBinaryString(file);
   };
 
   const handleInboundUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (file) setInboundFileName(file.name);
 
     setLoading(true);
     setProgressMessage('Reading inbound file...');
@@ -779,7 +674,7 @@ const [inboundFileName, setInboundFileName] = useState(null);
     const reader = new FileReader();
     reader.onload = (evt) => {
       const binaryStr = evt.target.result;
-      const workbook = XLSX.read(binaryStr, { type: 'array' });
+      const workbook = XLSX.read(binaryStr, { type: 'binary' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -791,13 +686,11 @@ const [inboundFileName, setInboundFileName] = useState(null);
       setLoading(false);
       setProgressMessage('');
     };
-    //reader.readAsBinaryString(file);
-    reader.readAsArrayBuffer(file);
+    reader.readAsBinaryString(file);
   };
 
-  const doComparisonSync = () => {
+  const doComparison = () => {
     setLoading(true);
-    //setIsComparing(true);
     setProgressMessage('Comparing outbound vs inbound results...');
 
     const inboundMap = {};
@@ -824,8 +717,8 @@ const [inboundFileName, setInboundFileName] = useState(null);
       // ADDED: Extract payloadJson from both sides
       const outboundPayloadJson = outItem.payloadJson || '';
       const inboundPayloadJson = inItem ? (inItem.payloadJson || '') : '';
-        //console.log("Check 1",outItem?.payloadJson?.sOHeader)
-        //console.log("Check 2",inItem?.payloadJson?.sOPackingSlipHeader)
+        console.log("Check 1",outItem?.payloadJson?.sOHeader)
+        console.log("Check 2",inItem?.payloadJson?.sOPackingSlipHeader)
       const outLineCount = outItem?.payloadJson?.sOHeader?.sOLines?.length || 0;
     const inLineCount = inItem?.payloadJson?.sOPackingSlipHeader?.sOPackingSlipLine?.length || 0; 
     const outWh = outItem?.payloadJson?.sOHeader?.shippingWareHouseId || "Missing WH";
@@ -853,91 +746,8 @@ const [inboundFileName, setInboundFileName] = useState(null);
     setComparisonResults(results);
     setLoading(false);
     setProgressMessage('');
-    //setIsComparing(false);
   };
 
-  const doComparison = async () => {
-    setLoading(true);
-    setIsComparing(true);
-    setIsTogglingWrap(true);
-    setProgressMessage("Comparing outbound vs inbound results...");
-  
-    const inboundMap = {};
-    inboundData.forEach((item) => {
-      inboundMap[item.keyField] = item;
-    });
-  
-    const totalItems = outboundData.length;
-    const results = [];
-    const CHUNK_SIZE = 500; // Number of records per chunk
-  
-    const processChunk = (startIndex) => {
-      const endIndex = Math.min(startIndex + CHUNK_SIZE, totalItems);
-  
-      for (let i = startIndex; i < endIndex; i++) {
-        const outItem = outboundData[i];
-        const inItem = inboundMap[outItem.keyField];
-        const inboundState = inItem ? inItem.finalState : "W"; // Changed 'F' to 'W'
-        const outboundState = outItem.finalState;
-        const comparisonMessage = compareStates(outboundState, inboundState);
-  
-        const outboundSuccessCount = outItem.successCount;
-        const outboundFailureCount = outItem.failureCount;
-        const inboundSuccessCount = inItem ? inItem.successCount : 0;
-        const inboundFailureCount = inItem ? inItem.failureCount : 0;
-  
-        const outboundLogDescription = outItem.logDescription || "";
-        const inboundLogDescription = inItem ? inItem.logDescription || "" : "";
-  
-        const outboundPayloadJson = outItem.payloadJson || "";
-        const inboundPayloadJson = inItem ? inItem.payloadJson || "" : "";
-        console.log(i,outItem.payloadJson,outItem?.payloadJson["requestHeader"])
-  
-        const outLineCount = outItem?.payloadJson?.sOHeader?.sOLines?.length || 0;
-        const inLineCount =
-          inItem?.payloadJson?.sOPackingSlipHeader?.sOPackingSlipLine?.length || 0;
-        const outWh =
-          outItem?.payloadJson?.sOHeader?.shippingWareHouseId || "Missing WH";
-  
-        results.push({
-          keyField: outItem.keyField,
-          outboundState,
-          inboundState,
-          comparisonMessage,
-          outboundSuccessCount,
-          outboundFailureCount,
-          inboundSuccessCount,
-          inboundFailureCount,
-          outboundLogDescription,
-          inboundLogDescription,
-          outboundPayloadJson,
-          inboundPayloadJson,
-          outLineCount,
-          inLineCount,
-          outWh,
-        });
-      }
-  
-      setComparisonResults([...results]); // Update results incrementally
-      setProgressMessage(
-        `Processed ${endIndex} of ${totalItems} records (${Math.round(
-          (endIndex / totalItems) * 100
-        )}%)`
-      );
-  
-      if (endIndex < totalItems) {
-        setTimeout(() => processChunk(endIndex), 0); // Process next chunk
-      } else {
-        setLoading(false);
-        setProgressMessage(""); // Clear progress message
-        setIsComparing(false);
-    setIsTogglingWrap(false);
-      }
-    };
-  
-    processChunk(0); // Start processing
-  };
-  
   const toggleWrapLogs = () => {
     setWrapLogs(!wrapLogs);
   };
@@ -1044,155 +854,55 @@ const [inboundFileName, setInboundFileName] = useState(null);
 
   return (
     <div>
-
-
-      <div className="max-w-3xl mx-auto bg-white p-6 shadow-md rounded-md">
-  <h1 className="text-2xl font-bold text-center mb-6">Compare Outbound vs Inbound</h1>
-
-  {/* Outbound File Upload Section */}
-  <div className="mb-4">
-    <h2 className="text-lg font-semibold text-gray-700 mb-2">Upload Outbound File</h2>
-    <div className="flex items-center space-x-4">
-      <input
-        type="file"
-        id="outboundFile"
-        onChange={handleOutboundUpload}
-        accept=".xls,.xlsx"
-        className="hidden"
-      />
-      <label
-        htmlFor="outboundFile"
-        className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-blue-600"
-      >
-        Choose File
-      </label>
-      <span className="text-gray-600 italic">
-        {outboundFileName || "No file chosen"}
-      </span>
-    </div>
-  </div>
-
-  {/* Inbound File Upload Section */}
-  <div className="mb-4">
-    <h2 className="text-lg font-semibold text-gray-700 mb-2">Upload Inbound File</h2>
-    <div className="flex items-center space-x-4">
-      <input
-        type="file"
-        id="inboundFile"
-        onChange={handleInboundUpload}
-        accept=".xls,.xlsx"
-        className="hidden"
-      />
-      <label
-        htmlFor="inboundFile"
-        className="bg-blue-500 text-white px-4 py-2 rounded-md cursor-pointer hover:bg-blue-600"
-      >
-        Choose File
-      </label>
-      <span className="text-gray-600 italic">
-        {inboundFileName || "No file chosen"}
-      </span>
-    </div>
-  </div>
-
-  <div className="flex justify-center space-x-4 mt-4">
-  {/* Compare Button */}
-  <button
-    onClick={async () => {
-      //console.log("isComparing will be set to true");
-      setIsComparing(true); // Show loader
-      
-      try {
-        await doComparison(); // Perform comparison
-      } finally {
-        //console.log("isComparing will be set to false");
-        setIsComparing(false); // Hide loader
-      }
-    }}
-    disabled={outboundData.length === 0 || inboundData.length === 0 || loading || isComparing}
-    className={`px-6 py-3 text-white font-medium rounded-md transition-all ${
-      outboundData.length === 0 || inboundData.length === 0 || loading || isComparing
-        ? "bg-gray-400 cursor-not-allowed"
-        : "bg-green-500 hover:bg-green-600"
-    }`}
-  >
-    {isComparing ? (
-      <div className="flex items-center space-x-2">
-        <span>Comparing...</span>
-        <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
+      <h1>Compare Outbound vs Inbound</h1>
+      <div>
+        <h2>Upload Outbound File</h2>
+        <input type="file" onChange={handleOutboundUpload} accept=".xls,.xlsx" />
       </div>
-    ) : (
-      "Compare"
-    )}
-  </button>
-
-  {/* Enable/Disable Wrap for Logs Button */}
-  {comparisonResults.length > 0 && (
-    <button
-      onClick={() => {
-        setIsTogglingWrap(true); // Show loader while processing
-        console.log(isTogglingWrap);
-        try {
-           // Enable/disable wrapping
-          //await doComparison()
-          toggleWrapLogs();
-        } finally {
-          setIsTogglingWrap(false); // Hide loader
-        }
-      }}
-      disabled={isTogglingWrap} // Disable button when loading
-      className={`px-6 py-3 text-white font-medium rounded-md transition-all ${
-        isTogglingWrap
-          ? "bg-gray-400 cursor-not-allowed" // Disabled styling
-          : "bg-gray-500 hover:bg-gray-700" // Default styling
-      }`}
-    >
-      {isTogglingWrap ? (
-        <div className="flex items-center space-x-2">
-          <span>Wrapping/Unwrapping...</span>
-          <div className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin"></div>
-        </div>
-      ) : wrapLogs ? (
-        "Disable Wrap for Logs"
-      ) : (
-        "Enable Wrap for Logs"
-      )}
-    </button>
-  )}
-</div>
-
-
-</div>
-
- {/* Global Loader
- {(isComparing || isTogglingWrap) && (
-    <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="flex flex-col items-center">
-        <div className="w-16 h-16 border-4 border-t-transparent border-white rounded-full animate-spin"></div>
-        <p className="text-white mt-4 text-lg">
-          {isComparing ? "Comparison in Progress..." : "Wrapping/Unwrapping in progress..."}
-        </p>
+      <div>
+        <h2>Upload Inbound File</h2>
+        <input type="file" onChange={handleInboundUpload} accept=".xls,.xlsx" />
       </div>
-    </div>
-  )} */}
 
-{loading && (
-  <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex flex-col items-center justify-center z-50">
-    <div className="bg-white p-4 rounded shadow-lg">
-      <div className="text-center mb-4">{progressMessage}</div>
-      <div className="w-64 bg-gray-200 rounded-full h-4">
-        <div
-          className="bg-blue-500 h-4 rounded-full"
+      <button 
+        style={{
+          margin: '5px',
+          padding: '5px 10px',
+          borderRadius: '4px',
+          border: '1px solid #ccc',
+          backgroundColor: '#f7f7f7',
+          color: '#333',
+          fontSize: '12px',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+        }}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+        onClick={doComparison} disabled={outboundData.length === 0 || inboundData.length === 0 || loading}
+      >
+        Compare
+      </button>
+
+      {comparisonResults.length > 0 && !loading && (
+        <button 
           style={{
-            width: `${comparisonResults.length / outboundData.length * 100}%`,
-          }}
-        ></div>
-      </div>
-    </div>
-  </div>
-)}
-
-
+              margin: '5px',
+              padding: '5px 10px',
+              borderRadius: '4px',
+              border: '1px solid #ccc',
+              backgroundColor: '#f7f7f7',
+              color: '#333',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+          onClick={toggleWrapLogs}
+        >
+          {wrapLogs ? 'Disable Wrap for Logs' : 'Enable Wrap for Logs'}
+        </button>
+      )}
 
       {loading && (
         <div style={{ margin: '20px', textAlign: 'center' }}>
@@ -1226,141 +936,60 @@ const [inboundFileName, setInboundFileName] = useState(null);
           <tbody>
             {comparisonResults.map((r, i) => (
               <tr key={i}>
-                <td>
-                <div style={{
-                    whiteSpace: wrapLogs ? 'pre' : 'pre',
-                    overflowWrap: wrapLogs ? 'normal' : 'normal',
-                    wordBreak: wrapLogs ? 'normal' : 'normal',
-                    maxWidth: '300px'
-                  }}>
-                  {r.keyField}
-                  </div>
-                  </td>
+                <td>{r.keyField}</td>
                 <td>{r.outboundState}</td>
                 <td>{r.inboundState}</td>
-                <td>
-                <div style={{
-                    whiteSpace: wrapLogs ? 'pre' : 'pre',
-                    overflowWrap: wrapLogs ? 'normal' : 'normal',
-                    wordBreak: wrapLogs ? 'normal' : 'normal',
-                    maxWidth: '300px'
-                  }}>
-                  {r.comparisonMessage}
-                  </div>
-                  </td>
+                <td>{r.comparisonMessage}</td>
                 <td>{r.outboundSuccessCount}</td>
                 <td>{r.outboundFailureCount}</td>
                 <td>{r.inboundSuccessCount}</td>
                 <td>{r.inboundFailureCount}</td>
                 <td>
-                  {/* Inbound Log Description */}
-  <div
-    style={{
-      whiteSpace: wrapLogs ? "pre-wrap" : "pre",
-      overflowWrap: wrapLogs ? "break-word" : "normal",
-      wordBreak: wrapLogs ? "break-all" : "normal",
-      maxWidth: "300px",
-      maxHeight: "150px",
-      overflowY: "auto",
-      padding: "5px",
-      border: "1px solid #ddd",
-      borderRadius: "4px",
-      backgroundColor: "#f9f9f9",
-    }}
-    title={r.outboundLogDescription} // Displays full JSON on hover
-  >
-    {r.outboundLogDescription}
-  </div>
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.outboundLogDescription}
+                  </div>
                 </td>
                 <td>
-                  {/* Inbound Log Description */}
-  <div
-    style={{
-      whiteSpace: wrapLogs ? "pre-wrap" : "pre",
-      overflowWrap: wrapLogs ? "break-word" : "normal",
-      wordBreak: wrapLogs ? "break-all" : "normal",
-      maxWidth: "300px",
-      maxHeight: "150px",
-      overflowY: "auto",
-      padding: "5px",
-      border: "1px solid #ddd",
-      borderRadius: "4px",
-      backgroundColor: "#f9f9f9",
-    }}
-    title={r.inboundLogDescription} // Displays full JSON on hover
-  >
-    {r.inboundLogDescription}
-  </div>
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.inboundLogDescription}
+                  </div>
                 </td>
                 <td>
-                   {/* Outbound Payload JSON */}
-  <div
-    style={{
-      whiteSpace: wrapLogs ? "pre-wrap" : "pre", // Enables wrapping if wrapLogs is true
-      overflowWrap: wrapLogs ? "break-word" : "normal",
-      wordBreak: wrapLogs ? "break-all" : "normal",
-      maxWidth: "300px", // Limits width
-      maxHeight: "150px", // Adds height limit to avoid overflow
-      overflowY: "auto", // Adds a vertical scrollbar for overflow
-      padding: "5px",
-      border: "1px solid #ddd", // Optional: for better visual separation
-      borderRadius: "4px", // Optional: for a smoother look
-      backgroundColor: "#f9f9f9", // Optional: subtle background color
-    }}
-    title={typeof r.outboundPayloadJson === 'object' ? (
-      <pre className="text-sm whitespace-pre-wrap">
-        {JSON.stringify(r.outboundPayloadJson, null, 2)}
-      </pre>
-    ) : (
-      r.outboundPayloadJson
-    )} // Displays full JSON on hover
-  >
-    {typeof r.outboundPayloadJson === 'object' ? (
-    <pre className="text-sm whitespace-pre-wrap">
-      {JSON.stringify(r.outboundPayloadJson, null, 2)}
-    </pre>
-  ) : (
-    r.outboundPayloadJson
-  )}
-  </div>
+                  {/* Outbound Payload JSON */}
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.outboundPayloadJson}
+                  </div>
                 </td>
                 <td>
                   {/* Inbound Payload JSON */}
-                  {/* Inbound Payload JSON */}
-  <div
-    style={{
-      whiteSpace: wrapLogs ? "pre-wrap" : "pre",
-      overflowWrap: wrapLogs ? "break-word" : "normal",
-      wordBreak: wrapLogs ? "break-all" : "normal",
-      maxWidth: "300px",
-      maxHeight: "150px",
-      overflowY: "auto",
-      padding: "5px",
-      border: "1px solid #ddd",
-      borderRadius: "4px",
-      backgroundColor: "#f9f9f9",
-    }}
-    title={typeof r.inboundPayloadJson === 'object' ? (
-      <pre className="text-sm whitespace-pre-wrap">
-        {JSON.stringify(r.inboundPayloadJson, null, 2)}
-      </pre>
-    ) : (
-      r.inboundPayloadJson
-    )} // Displays full JSON on hover
-  >
-    {typeof r.inboundPayloadJson === 'object' ? (
-    <pre className="text-sm whitespace-pre-wrap">
-      {JSON.stringify(r.inboundPayloadJson, null, 2)}
-    </pre>
-  ) : (
-    r.inboundPayloadJson
-  )}
-  </div>
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.inboundPayloadJson}
+                  </div>
                 </td>
                 <td>{r.outLineCount}</td>
                 <td>{r.inLineCount}</td>
                 <td>{r.outWh}</td>
-                {/* <td>
+                <td>
                   <button 
                    style={{
                     margin: '5px',
@@ -1428,44 +1057,7 @@ const [inboundFileName, setInboundFileName] = useState(null);
                   >
                     View Both
                   </button>
-                </td> */}
-               <td>
-  <div className="flex justify-start space-x-3">
-    {/* View OB Button */}
-    <button
-      className="px-5 py-2 rounded-lg border border-blue-500 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 hover:text-blue-800 transition-all"
-      onClick={() => openOutboundModal(JSON.stringify(r.outboundPayloadJson, null, 2))}
-    >
-      View OB
-    </button>
-
-    {/* View IB Button */}
-    <button
-      className="px-5 py-2 rounded-lg border border-green-500 bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 hover:text-green-800 transition-all"
-      onClick={() => openInboundModal(JSON.stringify(r.inboundPayloadJson,null,2))}
-    >
-      View IB
-    </button>
-
-    {/* View Both Button */}
-    <button
-      className="px-5 py-2 rounded-lg border border-purple-500 bg-purple-50 text-purple-700 text-sm font-semibold hover:bg-purple-100 hover:text-purple-800 transition-all"
-      onClick={() => {
-        try {
-          openObAndIbModal(JSON.stringify(r.outboundPayloadJson,null,2), JSON.stringify(r.inboundPayloadJson,null,2));
-        } catch (error) {
-          console.error("Button Error:", error);
-          alert("An unexpected error occurred. Please try again.");
-        }
-      }}
-    >
-      View Both
-    </button>
-  </div>
-</td>
-
-
-
+                </td>
               </tr>
             ))}
           </tbody>
@@ -1509,4 +1101,4 @@ const [inboundFileName, setInboundFileName] = useState(null);
   );
 }
 
-export default App3plSoObVsIb;
+export default App3plSoObVsIbBulk;

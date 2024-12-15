@@ -13,6 +13,12 @@ import AppComparison from "./App3plSoObVsIb";
 import App3plSoObVsIb from "./App3plSoObVsIb";
 import AppJsonAnalysis from "./AppJsonAnalysis";
 import React from 'react';
+import App3plSoObVsIbBulk from "./App3plSoObVsIbBulk";
+
+import AppTicketAnalysis from "./AppTicketAnalysis";
+import AppJsonAnalysisBulk from "./App3plJsonAnalysis/AppJsonAnalysisBulk";
+import NotFound404 from "./NotFound404";
+import HomePage from "./HomePage";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -52,16 +58,16 @@ class ErrorBoundary extends React.Component {
 const router = createBrowserRouter([
     {
       path: "/",
-      element: <div
-      className="m-40 p-4 flex "
-      >This is restricted to Solventum related tasks only</div>,
+      element: <ErrorBoundary>
+        <HomePage/>
+        </ErrorBoundary>,
     },
     {
       path:"/Json",
-      element:<AppJsonAnalysis/>
+      element:<ErrorBoundary><AppJsonAnalysis/></ErrorBoundary>
   },
   {
-    path:"/log3plsoob",
+    path:"/logob",
     element:
     <ErrorBoundary>
       <App3plSoOutbound/>
@@ -69,20 +75,44 @@ const router = createBrowserRouter([
     
   },
   {
-    path:"/log3plsoib",
-    element:<App3plSoInbound/>
+    path:"/logib",
+    element:<ErrorBoundary><App3plSoInbound/></ErrorBoundary>
   },
   {
-    path:"/log3plsoobvsib",
-    element:<App3plSoObVsIb/>
+    path:"/logobib",
+    element:
+    <ErrorBoundary><App3plSoObVsIb/></ErrorBoundary>
+  },
+  {
+    path:"/logbulk",
+    element:<ErrorBoundary>
+      <App3plSoObVsIbBulk/>
+    </ErrorBoundary>
+  },
+  {
+    path:"/jsonbulk",
+    element:<ErrorBoundary>
+      <AppJsonAnalysisBulk/>
+    </ErrorBoundary>
   },
     {
         path :"/tickets",
-        element : <AppTicket/>
+        element : <ErrorBoundary><AppTicket/></ErrorBoundary>
     },
     {
+      path :"/ticketsanalysis",
+      element : <ErrorBoundary><AppTicketAnalysis/></ErrorBoundary>
+  },
+
+    {
         path :"/mulesoft",
-        element : <AppMulesoft/>
+        element : <ErrorBoundary><AppMulesoft/></ErrorBoundary>
+    },
+    {
+      path:"*",
+      element:<ErrorBoundary>
+        <NotFound404/>
+      </ErrorBoundary>
     }
   ]);
 

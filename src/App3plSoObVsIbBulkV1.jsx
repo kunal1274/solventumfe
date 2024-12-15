@@ -1,0 +1,1223 @@
+import React, { useState,useMemo,useEffect } from 'react';
+import * as XLSX from 'xlsx';
+import { FixedSizeList as List } from "react-window";
+
+// Simple inline CSS for a spinner
+const spinnerStyle = {
+    display: 'inline-block',
+    width: '50px',
+    height: '50px',
+    border: '3px solid #f3f3f3',
+    borderTop: '3px solid #3498db',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite'
+};
+
+// Add the CSS keyframes for spinner animation
+const spinnerAnimation = `
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+`;
+
+// Insert spinner keyframes into the document's head (just once)
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.innerHTML = spinnerAnimation;
+  document.head.appendChild(style);
+}
+
+function determineState(finalStatus, oddBehavior) {
+  if (finalStatus.toLowerCase() === 'success') {
+    return oddBehavior ? 'SO' : 'S';
+  } else {
+    return 'F';
+  }
+}
+
+function parseData(jsonData) {
+  if (jsonData.length === 0) return [];
+
+  const headers = jsonData[0];
+  const msgIdIndex = headers.indexOf('Message Id');
+  const keyFieldIndex = headers.indexOf('Key field');
+  const responseStatusIndex = headers.indexOf('Response status');
+  const payloadJsonIndex = headers.indexOf('Payload JSON');
+  const responseDateIndex = headers.indexOf('Response date and time');
+  const csRemarksIndex = headers.indexOf('CS Remarks');
+  const csProgressIndex = headers.indexOf('CS Progress Status');
+  const logDescriptionIndex = headers.indexOf('Log description');
+
+  const requiredIndexes = [msgIdIndex, keyFieldIndex, responseStatusIndex, payloadJsonIndex, responseDateIndex];
+  if (requiredIndexes.includes(-1)) {
+    console.error("Required columns are missing.");
+    return [];
+  }
+
+  const rows = jsonData.slice(1).map(row => ({
+    messageId: row[msgIdIndex],
+    keyField: row[keyFieldIndex],
+    responseStatus: row[responseStatusIndex],
+    payloadJson: row[payloadJsonIndex],
+    responseDateTime: row[responseDateIndex],
+    csRemarks: csRemarksIndex !== -1 ? row[csRemarksIndex] : '',
+    csProgressStatus: csProgressIndex !== -1 ? row[csProgressIndex] : '',
+    logDescription: logDescriptionIndex !== -1 ? row[logDescriptionIndex] : ''
+  }));
+
+  return rows.filter(r => r.messageId);
+}
+
+function groupByKeyField(data) {
+  const map = {};
+  data.forEach(item => {
+    const key = item.keyField;
+    if (!map[key]) map[key] = [];
+    map[key].push(item);
+  });
+  return map;
+}
+
+function parseDate(dateValue) {
+  if (dateValue instanceof Date) return dateValue;
+
+  if (typeof dateValue === 'string') {
+    const [datePart, timePart] = dateValue.split(' ');
+    if (!datePart || !timePart) {
+      return new Date();
+    }
+    const [day, month, year] = datePart.split('/');
+    const [hour, min, sec] = timePart.split(':');
+    return new Date(year, month - 1, day, hour, min, sec);
+  }
+
+  return new Date(); 
+}
+
+function sortMessagesByDate(messages) {
+  return messages.sort((a, b) => parseDate(a.responseDateTime) - parseDate(b.responseDateTime));
+}
+
+function analyzeKeyFieldMessages(messages) {
+  let hasSuccess = false;
+  const successMessages = [];
+  const failureMessages = [];
+
+  for (const msg of messages) {
+    const status = (msg.responseStatus || '').toLowerCase();
+    if (status === 'success') {
+      hasSuccess = true;
+      successMessages.push(msg);
+    } else if (status === 'failure') {
+      failureMessages.push(msg);
+    }
+  }
+
+  let finalMessage = null;
+  if (hasSuccess) {
+    finalMessage = successMessages[successMessages.length - 1];
+  } else {
+    finalMessage = messages[messages.length - 1]; 
+  }
+
+  let oddBehavior = false;
+  if (hasSuccess) {
+    const finalSuccessTime = parseDate(finalMessage.responseDateTime);
+    for (const f of failureMessages) {
+      if (parseDate(f.responseDateTime) > finalSuccessTime) {
+        oddBehavior = true;
+        break;
+      }
+    }
+  }
+
+  const successCount = successMessages.length;
+  const failureCount = failureMessages.length;
+
+  return { finalMessage, oddBehavior, successCount, failureCount };
+}
+
+function analyzeData(data) {
+  if (!data || data.length === 0) return [];
+
+  const grouped = groupByKeyField(data);
+  const results = [];
+
+  for (const keyField in grouped) {
+    const sortedMessages = sortMessagesByDate(grouped[keyField]);
+    const { finalMessage, oddBehavior, successCount, failureCount } = analyzeKeyFieldMessages(sortedMessages);
+
+    let finalStatus = 'No Success';
+    let finalPayload = null;
+    let csRemarks = '';
+    let csProgressStatus = '';
+    let logDescription = '';
+
+    if (finalMessage) {
+      finalStatus = finalMessage.responseStatus;
+      finalPayload = finalMessage.payloadJson;
+      csRemarks = finalMessage.csRemarks;
+      csProgressStatus = finalMessage.csProgressStatus;
+      logDescription = finalMessage.logDescription;
+    }
+
+    const finalState = determineState(finalStatus, oddBehavior);
+
+    results.push({
+      keyField,
+      finalStatus,
+      oddBehavior,
+      successCount,
+      failureCount,
+      payloadJson: finalPayload,
+      csRemarks,
+      csProgressStatus,
+      logDescription,
+      finalState
+    });
+  }
+
+  return results;
+}
+
+// CHANGED: Updated compareStates to handle 'W' (Waiting) inbound state
+function compareStates(outState, inState) {
+  // Handle 'W' (Waiting) state
+  if (inState === 'W') { // ADDED
+    if (outState === 'S') return 'Outbound success, Inbound waiting';
+    if (outState === 'SO') return 'Outbound success (odd), Inbound waiting';
+    if (outState === 'F') return 'Outbound failure, Inbound waiting';
+    if (outState === 'W') return 'Both sides waiting (no inbound data)?'; // edge case
+  }
+
+  if (outState === 'S' && inState === 'S') return 'Both sides: Successful';
+  if (outState === 'S' && inState === 'SO') return 'Outbound success (clean), Inbound success (odd)';
+  if (outState === 'S' && inState === 'F') return 'Outbound success, Inbound failure';
+  if (outState === 'SO' && inState === 'S') return 'Outbound success (odd), Inbound success (clean)';
+  if (outState === 'SO' && inState === 'SO') return 'Both success odd';
+  if (outState === 'SO' && inState === 'F') return 'Outbound success (odd), Inbound failure';
+  if (outState === 'F' && inState === 'S') return 'Outbound failure, Inbound success';
+  if (outState === 'F' && inState === 'SO') return 'Outbound failure, Inbound success (odd)';
+  if (outState === 'F' && inState === 'F') return 'Both failure';
+  return 'Unknown combination';
+}
+
+
+
+const OutboundDisplay = ({ outboundData }) => {
+  const Row = ({ index, style }) => {
+    const order = outboundData[index];
+    return (
+      <div style={{ ...style, border: '1px solid #ccc', marginBottom: '10px', padding: '10px' }}>
+        <h3>Outbound Order: {order.sOHeader.orderUniqueReference}</h3>
+
+        <section>
+          <h4>Request Header</h4>
+          <p><strong>Message ID:</strong> {order.requestHeader.messageId}</p>
+          <p><strong>Country Code:</strong> {order.requestHeader.countryCode}</p>
+          <p><strong>Sender ID:</strong> {order.requestHeader.senderId}</p>
+          <p><strong>Receiver ID:</strong> {order.requestHeader.receiverId}</p>
+          <p><strong>Date Time:</strong> {order.requestHeader.dateTime}</p>
+        </section>
+
+        <section>
+          <h4>Sales Order Header</h4>
+          <p><strong>Order Unique Reference:</strong> {order.sOHeader.orderUniqueReference}</p>
+          <p><strong>Sales Order Number:</strong> {order.sOHeader.salesOrderNumber}</p>
+          <p><strong>Requested Receipt Date:</strong> {order.sOHeader.requestedReceiptDate}</p>
+          <p><strong>Customer Account Number:</strong> {order.sOHeader.customerAccountNumber}</p>
+          <p><strong>Email:</strong> {order.sOHeader.email}</p>
+        </section>
+
+        <section>
+          <h4>Sales Order Lines</h4>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={{ border: '1px solid #000' }}>Line #</th>
+                <th style={{ border: '1px solid #000' }}>Item Number</th>
+                <th style={{ border: '1px solid #000' }}>Description</th>
+                <th style={{ border: '1px solid #000' }}>Ordered Qty</th>
+                <th style={{ border: '1px solid #000' }}>Requested Receipt Date</th>
+                <th style={{ border: '1px solid #000' }}>Product Status</th>
+                <th style={{ border: '1px solid #000' }}>Batch Details</th>
+                <th style={{ border: '1px solid #000' }}>Serial Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {order.sOHeader.sOLines &&
+                order.sOHeader.sOLines.map((line, lineIndex) => (
+                  <tr key={lineIndex}>
+                    <td style={{ border: '1px solid #000' }}>{line.lineNumber}</td>
+                    <td style={{ border: '1px solid #000' }}>{line.itemNumber}</td>
+                    <td style={{ border: '1px solid #000' }}>{line.lineDescription}</td>
+                    <td style={{ border: '1px solid #000' }}>{line.orderedSalesQuantity}</td>
+                    <td style={{ border: '1px solid #000' }}>{line.requestedReceiptDate}</td>
+                    <td style={{ border: '1px solid #000' }}>{line.productStatus}</td>
+                    <td style={{ border: '1px solid #000' }}>
+                      {line.sOBatchDetails && line.sOBatchDetails.length > 0 ? (
+                        <ul>
+                          {line.sOBatchDetails.map((batch, batchIndex) => (
+                            <li key={batchIndex}>
+                              Qty: {batch.batchedOrderQuantity}, Batch#: {batch.itemBatchNumber || 'N/A'}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        'No batch details'
+                      )}
+                    </td>
+                    <td style={{ border: '1px solid #000' }}>
+                      {line.sOSerialDetails && line.sOSerialDetails.length > 0 ? (
+                        <ul>
+                          {line.sOSerialDetails.map((serial, serialIndex) => (
+                            <li key={serialIndex}>{serial.serialNumber || 'No Serial'}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        'No serial details'
+                      )}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </section>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h2>Outbound Orders</h2>
+      {outboundData && outboundData.length > 0 ? (
+        <List
+          height={600} // Height of the scrollable container
+          itemCount={outboundData.length}
+          itemSize={300} // Approximate height of each order
+          width="100%"
+        >
+          {Row}
+        </List>
+      ) : (
+        <p>No outbound orders found.</p>
+      )}
+    </div>
+  );
+};
+
+
+
+const InboundDisplay = ({ inboundData }) => {
+  const Row = ({ index, style }) => {
+    const pack = inboundData[index];
+
+    return (
+      <div
+        style={{
+          ...style,
+          border: "1px solid #ccc",
+          marginBottom: "10px",
+          padding: "10px",
+        }}
+      >
+        <h3>Inbound Packing Slip: {pack.sOPackingSlipHeader.salesId}</h3>
+
+        <section>
+          <h4>Request Header</h4>
+          <p>
+            <strong>Message ID:</strong> {pack.requestHeader.messageId}
+          </p>
+          <p>
+            <strong>Country Code:</strong> {pack.requestHeader.countryCode}
+          </p>
+          <p>
+            <strong>Sender ID:</strong> {pack.requestHeader.senderId}
+          </p>
+          <p>
+            <strong>Receiver ID:</strong> {pack.requestHeader.receiverId}
+          </p>
+          <p>
+            <strong>Date Time:</strong> {pack.requestHeader.dateTime}
+          </p>
+        </section>
+
+        <section>
+          <h4>Packing Slip Header</h4>
+          <p>
+            <strong>Sales ID (Unique Ref):</strong>{" "}
+            {pack.sOPackingSlipHeader.salesId}
+          </p>
+          <p>
+            <strong>Ship Date:</strong> {pack.sOPackingSlipHeader.shipDate}
+          </p>
+          <p>
+            <strong>Legal Entity Code:</strong>{" "}
+            {pack.sOPackingSlipHeader.legalEntityCode}
+          </p>
+        </section>
+
+        <section>
+          <h4>Packing Slip Lines</h4>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={{ border: "1px solid #000" }}>Line #</th>
+                <th style={{ border: "1px solid #000" }}>Item</th>
+                <th style={{ border: "1px solid #000" }}>Delivered</th>
+                <th style={{ border: "1px solid #000" }}>Batch Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pack.sOPackingSlipHeader.sOPackingSlipLine &&
+                pack.sOPackingSlipHeader.sOPackingSlipLine.map(
+                  (line, lineIndex) => (
+                    <tr key={lineIndex}>
+                      <td style={{ border: "1px solid #000" }}>
+                        {line.lineNumber}
+                      </td>
+                      <td style={{ border: "1px solid #000" }}>{line.item}</td>
+                      <td style={{ border: "1px solid #000" }}>
+                        {line.delivered}
+                      </td>
+                      <td style={{ border: "1px solid #000" }}>
+                        {line.sOPackingSlipBatchDetails &&
+                        line.sOPackingSlipBatchDetails.length > 0 ? (
+                          <ul>
+                            {line.sOPackingSlipBatchDetails.map(
+                              (batch, batchIndex) => (
+                                <li key={batchIndex}>
+                                  Qty: {batch.batchedOrderQuantity}, Batch#:{" "}
+                                  {batch.itemBatchNumber}, Expiry:{" "}
+                                  {batch.batchExpiryDate}, Status:{" "}
+                                  {batch.batchProductStatus}
+                                </li>
+                              )
+                            )}
+                          </ul>
+                        ) : (
+                          "No batch details"
+                        )}
+                      </td>
+                    </tr>
+                  )
+                )}
+            </tbody>
+          </table>
+        </section>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h2>Inbound Packing Slips</h2>
+      {inboundData && inboundData.length > 0 ? (
+        <List
+          height={600} // Height of the scrollable container
+          itemCount={inboundData.length}
+          itemSize={300} // Approximate height of each packing slip
+          width="100%"
+        >
+          {Row}
+        </List>
+      ) : (
+        <p>No inbound packing slips found.</p>
+      )}
+    </div>
+  );
+};
+
+
+
+const Comparison = ({ outboundData, inboundData }) => {
+  if (!outboundData || !Array.isArray(outboundData)) {
+    console.error("Comparison Error: Missing or invalid outbound data", outboundData);
+    return <p>No valid Outbound Data available for comparison.</p>;
+  }
+
+  if (!inboundData || !Array.isArray(inboundData)) {
+    console.error("Comparison Error: Missing or invalid inbound data", inboundData);
+    return <p>No valid Inbound Data available for comparison.</p>;
+  }
+
+  // Create a map for all inbound lines keyed by "salesId-lineNumber"
+  const inboundMap = useMemo(() => {
+    const map = {};
+    inboundData.forEach(pack => {
+      const salesId = pack.sOPackingSlipHeader.salesId; // e.g., AUA-0000091-02
+      pack.sOPackingSlipHeader.sOPackingSlipLine.forEach(inLine => {
+        const key = `${salesId}-${inLine.lineNumber}`;
+        map[key] = inLine;
+      });
+    });
+    return map;
+  }, [inboundData]);
+
+  const Row = ({ index, style }) => {
+    const order = outboundData[index];
+    const orderUniqueRef = order.sOHeader.orderUniqueReference; // e.g., AUA-0000091-02
+
+    return (
+      <div
+        style={{
+          ...style,
+          border: "1px solid #ccc",
+          marginBottom: "10px",
+          padding: "10px",
+        }}
+      >
+        <h3>Comparing Order: {orderUniqueRef}</h3>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr>
+              <th style={{ border: "1px solid #000" }}>Line #</th>
+              <th style={{ border: "1px solid #000" }}>Item</th>
+              <th style={{ border: "1px solid #000" }}>Outbound Qty</th>
+              <th style={{ border: "1px solid #000" }}>Inbound Total Qty</th>
+              <th style={{ border: "1px solid #000" }}>Difference</th>
+              <th style={{ border: "1px solid #000" }}>Inbound Batch Breakdown</th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.sOHeader.sOLines &&
+              order.sOHeader.sOLines.map((outLine, lineIndex) => {
+                const key = `${orderUniqueRef}-${outLine.lineNumber}`;
+                const inboundLine = inboundMap[key];
+
+                let inboundTotal = 0;
+                let inboundBatches = [];
+                if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
+                  inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+                  inboundTotal = inboundBatches.reduce(
+                    (sum, b) => sum + b.batchedOrderQuantity,
+                    0
+                  );
+                }
+
+                const difference =
+                  outLine.orderedSalesQuantity - inboundTotal;
+
+                return (
+                  <tr key={lineIndex}>
+                    <td style={{ border: "1px solid #000" }}>
+                      {outLine.lineNumber}
+                    </td>
+                    <td style={{ border: "1px solid #000" }}>
+                      {outLine.itemNumber}
+                    </td>
+                    <td style={{ border: "1px solid #000" }}>
+                      {outLine.orderedSalesQuantity}
+                    </td>
+                    <td style={{ border: "1px solid #000" }}>
+                      {inboundTotal}
+                    </td>
+                    <td
+                      style={{
+                        border: "1px solid #000",
+                        color: difference === 0 ? "green" : "red",
+                      }}
+                    >
+                      {difference}
+                    </td>
+                    <td style={{ border: "1px solid #000" }}>
+                      {inboundBatches.length > 0 ? (
+                        <table
+                          style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                          }}
+                        >
+                          <thead>
+                            <tr>
+                              <th style={{ border: "1px solid #000" }}>
+                                Batch #
+                              </th>
+                              <th style={{ border: "1px solid #000" }}>
+                                Qty
+                              </th>
+                              <th style={{ border: "1px solid #000" }}>
+                                Expiry
+                              </th>
+                              <th style={{ border: "1px solid #000" }}>
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {inboundBatches.map((batch, bIndex) => (
+                              <tr key={bIndex}>
+                                <td style={{ border: "1px solid #000" }}>
+                                  {batch.itemBatchNumber}
+                                </td>
+                                <td style={{ border: "1px solid #000" }}>
+                                  {batch.batchedOrderQuantity}
+                                </td>
+                                <td style={{ border: "1px solid #000" }}>
+                                  {batch.batchExpiryDate}
+                                </td>
+                                <td style={{ border: "1px solid #000" }}>
+                                  {batch.batchProductStatus}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        "No inbound batch data"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      <h2>Outbound vs Inbound Comparison</h2>
+      {outboundData && outboundData.length > 0 ? (
+        <List
+          height={600} // Height of the scrollable container
+          itemCount={outboundData.length}
+          itemSize={300} // Approximate height of each comparison order
+          width="100%"
+        >
+          {Row}
+        </List>
+      ) : (
+        <p>No outbound orders found for comparison.</p>
+      )}
+    </div>
+  );
+};
+
+const ComplexComparison = ({ outboundData, inboundData, actualQuantities }) => {
+    if (!outboundData || !Array.isArray(outboundData)) {
+      console.error("ComplexComparison Error: outboundData is not valid", outboundData);
+      return <p>Invalid Outbound Data</p>;
+    }
+  
+    if (!inboundData || !Array.isArray(inboundData)) {
+      console.error("ComplexComparison Error: inboundData is not valid", inboundData);
+      return <p>Invalid Inbound Data</p>;
+    }
+  
+    // Step 1: Build an inbound map for quick lookup
+    const inboundMap = useMemo(() => {
+      const map = {};
+      inboundData.forEach(pack => {
+        const salesId = pack.sOPackingSlipHeader.salesId; // e.g., AUA-0000091-02
+        pack.sOPackingSlipHeader.sOPackingSlipLine.forEach(inLine => {
+          const key = `${salesId}-${inLine.lineNumber}`;
+          map[key] = inLine;
+        });
+      });
+      return map;
+    }, [inboundData]);
+  
+    // Step 2: Group outbound lines by (salesOrderNumber, lineNumber, itemNumber)
+    const groupedData = useMemo(() => {
+      const group = {};
+      outboundData.forEach(order => {
+        const baseSalesOrderNumber = order.sOHeader.salesOrderNumber.split('-')[0]; // e.g., "AUA-0000091"
+        const orderUniqueRef = order.sOHeader.orderUniqueReference; // e.g., "AUA-0000091-02"
+  
+        order.sOHeader.sOLines.forEach(line => {
+          const { lineNumber, itemNumber, orderedSalesQuantity, sOBatchDetails, sOSerialDetails, productStatus } = line;
+  
+          const key = `${baseSalesOrderNumber}-${lineNumber}-${itemNumber}`;
+  
+          if (!group[key]) {
+            group[key] = {
+              salesOrderNumber: baseSalesOrderNumber,
+              lineNumber,
+              itemNumber,
+              outbounds: [],
+            };
+          }
+  
+          // Find inbound line match
+          const inboundKey = `${orderUniqueRef}-${lineNumber}`;
+          const inboundLine = inboundMap[inboundKey];
+  
+          let inboundTotal = 0;
+          let inboundBatches = [];
+          if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
+            inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+            inboundTotal = inboundBatches.reduce((sum, b) => sum + b.batchedOrderQuantity, 0);
+          }
+  
+          const difference = orderedSalesQuantity - inboundTotal;
+  
+          group[key].outbounds.push({
+            orderUniqueReference: orderUniqueRef,
+            orderedSalesQuantity,
+            outboundBatchDetails: sOBatchDetails,
+            outboundSerialDetails: sOSerialDetails,
+            productStatus,
+            inboundTotal,
+            difference,
+            inboundBatches,
+          });
+        });
+      });
+      return group;
+    }, [outboundData, inboundMap]);
+  
+    const groupArray = Object.values(groupedData);
+  
+    const getActualQty = (salesOrderNumber, lineNumber, itemNumber) => {
+      const key = `${salesOrderNumber}-${lineNumber}-${itemNumber}`;
+      return actualQuantities && actualQuantities[key] != null ? actualQuantities[key] : 'N/A';
+    };
+  
+    return (
+      <div>
+        <h2>Complex Comparison Table</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ border: '1px solid #000' }}>Sales Order No</th>
+              <th style={{ border: '1px solid #000' }}>Line #</th>
+              <th style={{ border: '1px solid #000' }}>Item Number</th>
+              <th style={{ border: '1px solid #000' }}>SO Line Actual Qty</th>
+              <th style={{ border: '1px solid #000' }}>Outbound Ref</th>
+              <th style={{ border: '1px solid #000' }}>Outbound Ordered Qty</th>
+              <th style={{ border: '1px solid #000' }}>Outbound Batch Details</th>
+              <th style={{ border: '1px solid #000' }}>Outbound Serial Details</th>
+              <th style={{ border: '1px solid #000' }}>Inbound Total Qty</th>
+              <th style={{ border: '1px solid #000' }}>Difference</th>
+              <th style={{ border: '1px solid #000' }}>Batch #</th>
+              <th style={{ border: '1px solid #000' }}>Qty</th>
+              <th style={{ border: '1px solid #000' }}>Expiry</th>
+              <th style={{ border: '1px solid #000' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groupArray.map((group, groupIndex) => {
+              const { salesOrderNumber, lineNumber, itemNumber, outbounds } = group;
+  
+              const totalRowsForGroup = outbounds.reduce((sum, ob) => sum + (ob.inboundBatches.length || 1), 0);
+              const soLineActualQty = getActualQty(salesOrderNumber, lineNumber, itemNumber);
+  
+              return (
+                <React.Fragment key={groupIndex}>
+                  {outbounds.map((obLine, obLineIndex) => {
+                    const { orderUniqueReference, orderedSalesQuantity, outboundBatchDetails, outboundSerialDetails, inboundTotal, difference, inboundBatches } = obLine;
+  
+                    const outboundBatchStr = outboundBatchDetails?.length
+                      ? outboundBatchDetails.map(b => `Qty: ${b.batchedOrderQuantity}, Batch#: ${b.itemBatchNumber || 'N/A'}`).join(' | ')
+                      : 'No batch details';
+  
+                    const outboundSerialStr = outboundSerialDetails?.length
+                      ? outboundSerialDetails.map(s => s.serialNumber || 'No Serial').join(', ')
+                      : 'No Serial';
+  
+                    return inboundBatches.length > 0 ? (
+                      inboundBatches.map((batch, batchIndex) => (
+                        <tr key={`${groupIndex}-${obLineIndex}-${batchIndex}`}>
+                          {batchIndex === 0 && (
+                            <>
+                              {obLineIndex === 0 && (
+                                <>
+                                  <td rowSpan={totalRowsForGroup}>{salesOrderNumber}</td>
+                                  <td rowSpan={totalRowsForGroup}>{lineNumber}</td>
+                                  <td rowSpan={totalRowsForGroup}>{itemNumber}</td>
+                                  <td rowSpan={totalRowsForGroup}>{soLineActualQty}</td>
+                                </>
+                              )}
+                              <td>{orderUniqueReference}</td>
+                              <td>{orderedSalesQuantity}</td>
+                              <td>{outboundBatchStr}</td>
+                              <td>{outboundSerialStr}</td>
+                              <td>{inboundTotal}</td>
+                              <td style={{ color: difference === 0 ? 'green' : 'red' }}>{difference}</td>
+                            </>
+                          )}
+                          <td>{batch.itemBatchNumber}</td>
+                          <td>{batch.batchedOrderQuantity}</td>
+                          <td>{batch.batchExpiryDate}</td>
+                          <td>{batch.batchProductStatus}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr key={`${groupIndex}-${obLineIndex}`}>
+                        {obLineIndex === 0 && (
+                          <>
+                            <td rowSpan={totalRowsForGroup}>{salesOrderNumber}</td>
+                            <td rowSpan={totalRowsForGroup}>{lineNumber}</td>
+                            <td rowSpan={totalRowsForGroup}>{itemNumber}</td>
+                            <td rowSpan={totalRowsForGroup}>{soLineActualQty}</td>
+                          </>
+                        )}
+                        <td>{orderUniqueReference}</td>
+                        <td>{orderedSalesQuantity}</td>
+                        <td>{outboundBatchStr}</td>
+                        <td>{outboundSerialStr}</td>
+                        <td>{inboundTotal}</td>
+                        <td style={{ color: difference === 0 ? 'green' : 'red' }}>{difference}</td>
+                        <td colSpan={4}>No inbound batch data</td>
+                      </tr>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+function App3plSoObVsIbBulk() {
+  const [outboundData, setOutboundData] = useState([]);
+  const [inboundData, setInboundData] = useState([]);
+  const [comparisonResults, setComparisonResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [progressMessage, setProgressMessage] = useState('');
+  const [wrapLogs, setWrapLogs] = useState(false); // For wrapping logs
+
+  // Modal state to display JSON payload
+  const [modalContent, setModalContent] = useState(null);
+
+  const handleOutboundUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+  
+    setLoading(true);
+    setProgressMessage('Reading outbound file in chunks...');
+  
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const binaryStr = evt.target.result;
+      const workbook = XLSX.read(binaryStr, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  
+      // Chunk size to process in parts
+      const CHUNK_SIZE = 1000; // Number of rows per chunk
+      let chunkedData = [];
+      for (let i = 1; i < jsonData.length; i += CHUNK_SIZE) {
+        const chunk = jsonData.slice(i, i + CHUNK_SIZE);
+        const formattedChunk = parseData([jsonData[0], ...chunk]); // Include headers
+        chunkedData = chunkedData.concat(formattedChunk);
+      }
+  
+      const analysis = analyzeData(chunkedData);
+      setOutboundData(analysis);
+      setLoading(false);
+      setProgressMessage('');
+    };
+    reader.readAsBinaryString(file);
+  };
+  
+  const handleInboundUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+  
+    setLoading(true);
+    setProgressMessage('Reading inbound file in chunks...');
+  
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const binaryStr = evt.target.result;
+      const workbook = XLSX.read(binaryStr, { type: 'binary' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  
+      // Chunk size to process in parts
+      const CHUNK_SIZE = 1000;
+      let chunkedData = [];
+      for (let i = 1; i < jsonData.length; i += CHUNK_SIZE) {
+        const chunk = jsonData.slice(i, i + CHUNK_SIZE);
+        const formattedChunk = parseData([jsonData[0], ...chunk]);
+        chunkedData = chunkedData.concat(formattedChunk);
+      }
+  
+      const analysis = analyzeData(chunkedData);
+      setInboundData(analysis);
+      setLoading(false);
+      setProgressMessage('');
+    };
+    reader.readAsBinaryString(file);
+  };
+  
+  const doComparison = () => {
+    setLoading(true);
+    setProgressMessage('Comparing outbound vs inbound results...');
+
+    const inboundMap = {};
+    inboundData.forEach(item => {
+      inboundMap[item.keyField] = item;
+    });
+
+    const results = outboundData.map(outItem => {
+      const inItem = inboundMap[outItem.keyField];
+      // CHANGED: If no inbound, inboundState = 'W' instead of 'F'
+      const inboundState = inItem ? inItem.finalState : 'W'; // Changed 'F' to 'W'
+      
+      const outboundState = outItem.finalState;
+      const comparisonMessage = compareStates(outboundState, inboundState);
+
+      const outboundSuccessCount = outItem.successCount;
+      const outboundFailureCount = outItem.failureCount;
+      const inboundSuccessCount = inItem ? inItem.successCount : 0;
+      const inboundFailureCount = inItem ? inItem.failureCount : 0;
+
+      const outboundLogDescription = outItem.logDescription || '';
+      const inboundLogDescription = inItem ? (inItem.logDescription || '') : '';
+
+      // ADDED: Extract payloadJson from both sides
+      const outboundPayloadJson = outItem.payloadJson || '';
+      const inboundPayloadJson = inItem ? (inItem.payloadJson || '') : '';
+        console.log("Check 1",outItem?.payloadJson?.sOHeader)
+        console.log("Check 2",inItem?.payloadJson?.sOPackingSlipHeader)
+      const outLineCount = outItem?.payloadJson?.sOHeader?.sOLines?.length || 0;
+    const inLineCount = inItem?.payloadJson?.sOPackingSlipHeader?.sOPackingSlipLine?.length || 0; 
+    const outWh = outItem?.payloadJson?.sOHeader?.shippingWareHouseId || "Missing WH";
+
+      return {
+        keyField: outItem.keyField,
+        outboundState,
+        inboundState,
+        comparisonMessage,
+        outboundSuccessCount,
+        outboundFailureCount,
+        inboundSuccessCount,
+        inboundFailureCount,
+        outboundLogDescription,
+        inboundLogDescription,
+        outboundPayloadJson, // NEW FIELD
+        inboundPayloadJson,   // NEW FIELD
+        outLineCount,
+        inLineCount,
+        outWh
+
+      };
+    });
+
+    setComparisonResults(results);
+    setLoading(false);
+    setProgressMessage('');
+  };
+
+  const toggleWrapLogs = () => {
+    setWrapLogs(!wrapLogs);
+  };
+
+  const parseJsonPayload = (payload) => {
+    try {
+      const parsed = JSON.parse(payload);
+      return Array.isArray(parsed) ? parsed : [parsed]; // Ensure data is always an array
+    } catch (error) {
+      alert('Invalid JSON provided. Please correct it and try again.');
+      return [];
+    }
+  };
+  
+
+  const openOutboundModal = (outboundDataParam) => {
+    if (outboundDataParam && outboundDataParam.length > 0) {
+      setModalContent(<OutboundDisplay outboundData={parseJsonPayload(outboundDataParam)} />);
+    } else {
+      setModalContent(<p>No Outbound Payload Available</p>);
+    }
+  };
+
+  const openInboundModal = (inboundDataParam) => {
+    if (inboundDataParam && inboundDataParam.length > 0) {
+      setModalContent(<InboundDisplay inboundData={parseJsonPayload(inboundDataParam)} />);
+    } else {
+      setModalContent(<p>No Inbound Payload Available</p>);
+    }
+  };
+
+  const openObAndIbModal = (obDataParam, ibDataParam) => {
+    try {
+      const obData = obDataParam ? parseJsonPayload(obDataParam) : ["NA"];
+      const ibData = ibDataParam ? parseJsonPayload(ibDataParam) : ["NA"];
+  
+      if (!Array.isArray(obData) || !Array.isArray(ibData)) {
+        throw new Error("Invalid Outbound or Inbound Data Format");
+      }
+  
+      if (obData.length > 0 && ibData.length > 0) {
+        setModalContent(
+          <>
+            <Comparison outboundData={obData} inboundData={ibData} />
+            <ComplexComparison outboundData={obData} inboundData={ibData} actualQuantities={70} />
+          </>
+        );
+      } else {
+        setModalContent(<p>No Outbound or Inbound Payload Available for comparison</p>);
+      }
+    } catch (error) {
+      console.error("Error in openObAndIbModal:", error);
+      setModalContent(
+        <p style={{ color: 'red' }}>An error occurred: {error.message}. Please check your payloads.</p>
+      );
+    }
+  };
+  
+
+  const closeModal = () => {
+    setModalContent(null);
+  };
+
+  return (
+    <div>
+      <h1>Compare Outbound vs Inbound</h1>
+      <div>
+        <h2>Upload Outbound File</h2>
+        <input type="file" onChange={handleOutboundUpload} accept=".xls,.xlsx" />
+      </div>
+      <div>
+        <h2>Upload Inbound File</h2>
+        <input type="file" onChange={handleInboundUpload} accept=".xls,.xlsx" />
+      </div>
+
+      <button 
+        style={{
+          margin: '5px',
+          padding: '5px 10px',
+          borderRadius: '4px',
+          border: '1px solid #ccc',
+          backgroundColor: '#f7f7f7',
+          color: '#333',
+          fontSize: '12px',
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+        }}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+        onClick={doComparison} disabled={outboundData.length === 0 || inboundData.length === 0 || loading}
+      >
+        Compare
+      </button>
+
+      {comparisonResults.length > 0 && !loading && (
+        <button 
+          style={{
+              margin: '5px',
+              padding: '5px 10px',
+              borderRadius: '4px',
+              border: '1px solid #ccc',
+              backgroundColor: '#f7f7f7',
+              color: '#333',
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+            }}
+          onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+          onClick={toggleWrapLogs}
+        >
+          {wrapLogs ? 'Disable Wrap for Logs' : 'Enable Wrap for Logs'}
+        </button>
+      )}
+
+      {loading && (
+        <div style={{ margin: '20px', textAlign: 'center' }}>
+          <div style={spinnerStyle}></div>
+          <p>{progressMessage}</p>
+        </div>
+      )}
+
+      {comparisonResults.length > 0 && !loading && (
+        <table border="1" style={{ marginTop: '20px', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th>Key Field</th>
+              <th>Outbound Final State</th>
+              <th>Inbound Final State</th>
+              <th>Comparison Result</th>
+              <th>Outbound Success Count</th>
+              <th>Outbound Failure Count</th>
+              <th>Inbound Success Count</th>
+              <th>Inbound Failure Count</th>
+              <th>Outbound Log Description</th>
+              <th>Inbound Log Description</th>
+              <th>Outbound Payload JSON</th> {/* NEW COLUMN */}
+              <th>Inbound Payload JSON</th>   {/* NEW COLUMN */}
+              <th>OB Line Count</th>
+              <th>IB Line Count</th>
+              <th>OB WH</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {comparisonResults.map((r, i) => (
+              <tr key={i}>
+                <td>{r.keyField}</td>
+                <td>{r.outboundState}</td>
+                <td>{r.inboundState}</td>
+                <td>{r.comparisonMessage}</td>
+                <td>{r.outboundSuccessCount}</td>
+                <td>{r.outboundFailureCount}</td>
+                <td>{r.inboundSuccessCount}</td>
+                <td>{r.inboundFailureCount}</td>
+                <td>
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.outboundLogDescription}
+                  </div>
+                </td>
+                <td>
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.inboundLogDescription}
+                  </div>
+                </td>
+                <td>
+                  {/* Outbound Payload JSON */}
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.outboundPayloadJson}
+                  </div>
+                </td>
+                <td>
+                  {/* Inbound Payload JSON */}
+                  <div style={{
+                    whiteSpace: wrapLogs ? 'pre-wrap' : 'pre',
+                    overflowWrap: wrapLogs ? 'break-word' : 'normal',
+                    wordBreak: wrapLogs ? 'break-all' : 'normal',
+                    maxWidth: '300px'
+                  }}>
+                    {r.inboundPayloadJson}
+                  </div>
+                </td>
+                <td>{r.outLineCount}</td>
+                <td>{r.inLineCount}</td>
+                <td>{r.outWh}</td>
+                <td>
+                  <button 
+                   style={{
+                    margin: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    backgroundColor: '#f7f7f7',
+                    color: '#333',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+                  //onClick={() => openModal(r.outboundPayloadJson || "No OB Payload Available")}
+                  onClick={() => openOutboundModal(r.outboundPayloadJson)}
+                  >
+                    View OB
+                  </button>
+                  <button 
+                   style={{
+                    margin: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    backgroundColor: '#f7f7f7',
+                    color: '#333',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+                  onClick={() => openInboundModal(r.inboundPayloadJson)}>
+                    View IB
+                  </button>
+                  <button 
+                   style={{
+                    margin: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    backgroundColor: '#f7f7f7',
+                    color: '#333',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+                //   onClick={() => openModal(
+                //     `Outbound Payload:\n${r.outboundPayloadJson || "No OB Payload Available"}\n\n` + 
+                //     `Inbound Payload:\n${r.inboundPayloadJson || "No IB Payload Available"}`
+                //   )}
+                onClick={() => {
+                    console.log("Outbound Payload JSON:", r.outboundPayloadJson);
+                    console.log("Inbound Payload JSON:", r.inboundPayloadJson);
+                    try {
+                      openObAndIbModal(r.outboundPayloadJson, r.inboundPayloadJson);
+                    } catch (error) {
+                      console.error("Button Error:", error);
+                      alert("An unexpected error occurred. Please try again.");
+                    }
+                  }}
+                  >
+                    View Both
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+        {modalContent && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          backgroundColor: 'white',
+          border: '1px solid #ccc',
+          padding: '20px',
+          zIndex: 1000,
+          maxWidth: '80%',
+          maxHeight: '80%',
+          overflow: 'auto'
+        }}>
+          <pre>{modalContent}</pre>
+          <button 
+           style={{
+            margin: '5px',
+            padding: '5px 10px',
+            borderRadius: '4px',
+            border: '1px solid #ccc',
+            backgroundColor: '#f7f7f7',
+            color: '#333',
+            fontSize: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+          }}
+        onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+          
+          onClick={closeModal}>Close</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App3plSoObVsIbBulk;

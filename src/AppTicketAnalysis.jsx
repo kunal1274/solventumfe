@@ -596,7 +596,7 @@ const Tabs = () => {
   );
 };
 
-function App() {
+function AppTicketAnalysis() {
   return (
     <>
       <div className="mt-4">
@@ -606,4 +606,4 @@ function App() {
   );
 }
 
-export default App;
+export default AppTicketAnalysis;
