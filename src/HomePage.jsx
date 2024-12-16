@@ -17,7 +17,7 @@ const HomePage = () => {
   ];
 
   return (
-    <div className="h-screen bg-gray-50 flex justify-center items-center">
+    <div className="h-screen bg-gray-50 flex justify-center items-center pt-10">
       <div className="bg-white shadow-lg rounded-lg p-10 w-full mx-6">
         <h1 className="text-4xl font-bold text-gray-800 text-center mb-4">
           Welcome to Solventum Task Management
