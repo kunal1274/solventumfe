@@ -5,15 +5,15 @@ import { Link } from "react-router-dom";
 
 const HomePage = () => {
   const routes = [
-    { path: "/Json", label: "JSON Analysis" },
-    { path: "/logob", label: "Log Outbound" },
-    { path: "/logib", label: "Log Inbound" },
-    { path: "/logobib", label: "Log Outbound vs Inbound" },
-    { path: "/logbulk", label: "Log Bulk Processing" },
-    { path: "/jsonbulk", label: "JSON Bulk Analysis" },
-    { path: "/tickets", label: "Tickets" },
-    { path: "/ticketsanalysis", label: "Tickets Analysis" },
-    { path: "/mulesoft", label: "Mulesoft Integration" },
+    { path: "/Json", label: "JSON Analysis(Alpha WIP)" },
+    { path: "/logob", label: "Log Outbound(Alpha WIP)" },
+    { path: "/logib", label: "Log Inbound(Alpha WIP)" },
+    { path: "/logobib", label: "Log Outbound vs Inbound(Beta TESTING)" },
+    { path: "/logbulk", label: "Log Bulk Processing(Alpha WIP)" },
+    { path: "/jsonbulk", label: "JSON Bulk Analysis(Alpha WIP)" },
+    { path: "/tickets", label: "Tickets(Alpha WIP)" },
+    { path: "/ticketsanalysis", label: "Tickets Analysis(Alpha WIP)" },
+    { path: "/mulesoft", label: "Mulesoft Integration(Alpha WIP)" },
   ];
 
   return (

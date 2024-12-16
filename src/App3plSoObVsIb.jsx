@@ -730,12 +730,27 @@ function App3plSoObVsIb() {
   const [asyncLoading, setAsyncLoading] = useState(false); // Tracks processing or loading state for comparison and wrapping or unwrapping
   const [isComparing, setIsComparing] = React.useState(false);
   const [isTogglingWrap, setIsTogglingWrap] = React.useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
 
   // Modal state to display JSON payload
   const [modalContent, setModalContent] = useState(null);
 
   const [outboundFileName, setOutboundFileName] = useState(null);
 const [inboundFileName, setInboundFileName] = useState(null);
+
+
+const filteredComparisonResults = comparisonResults.filter((item) => {
+  const excludedFields = ["outboundPayloadJson","inboundPayloadJson"]; // List fields to exclude from the search
+  
+  return Object.keys(item).some((key) => {
+    // Skip excluded fields
+    if (excludedFields.includes(key)) return false;
+
+    // Convert value to string for comparison and check for search query match
+    return String(item[key]).toLowerCase().includes(searchQuery.toLowerCase());
+  });
+});
 
   const handleOutboundUpload = (e) => {
     const file = e.target.files[0];
@@ -1096,6 +1111,35 @@ const [inboundFileName, setInboundFileName] = useState(null);
   </div>
 
   <div className="flex justify-center space-x-4 mt-4">
+  
+  {/* Reset Button */}
+<button
+  onClick={() => {
+    // Clear the state for outbound and inbound data
+    setOutboundData([]);
+    setInboundData([]);
+    setOutboundFileName(null);
+    setInboundFileName(null);
+
+    // Reset file inputs
+    document.getElementById("outboundFile").value = ""; // Reset outbound file input
+    document.getElementById("inboundFile").value = "";  // Reset inbound file input
+
+    // Optionally clear any progress messages or comparison results
+    setProgressMessage('');
+    setComparisonResults([]);
+  }}
+  disabled={outboundData.length === 0 || inboundData.length === 0 ||  loading} // Disable only if loading or comparing
+  className={`px-6 py-3 text-white font-medium rounded-md transition-all ${
+    outboundData.length === 0 || inboundData.length === 0 ||  loading
+      ? "bg-gray-400 cursor-not-allowed"
+      : "bg-red-500 hover:bg-red-600"
+  }`}
+>
+  Reset File
+</button>
+
+
   {/* Compare Button */}
   <button
     onClick={async () => {
@@ -1127,7 +1171,7 @@ const [inboundFileName, setInboundFileName] = useState(null);
   </button>
 
   {/* Enable/Disable Wrap for Logs Button */}
-  {comparisonResults.length > 0 && (
+  {filteredComparisonResults.length > 0 && (
     <button
       onClick={() => {
         setIsTogglingWrap(true); // Show loader while processing
@@ -1164,6 +1208,16 @@ const [inboundFileName, setInboundFileName] = useState(null);
 
 </div>
 
+<div className="m-4">
+  <input
+    type="text"
+    placeholder="Search..."
+    value={searchQuery}
+    onChange={(e) => setSearchQuery(e.target.value)}
+    className="w-full p-2 border border-gray-300 rounded-md"
+  />
+</div>
+
  {/* Global Loader
  {(isComparing || isTogglingWrap) && (
     <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
@@ -1176,7 +1230,7 @@ const [inboundFileName, setInboundFileName] = useState(null);
     </div>
   )} */}
 
-{loading && (
+{isComparing && (
   <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex flex-col items-center justify-center z-50">
     <div className="bg-white p-4 rounded shadow-lg">
       <div className="text-center mb-4">{progressMessage}</div>
@@ -1184,7 +1238,7 @@ const [inboundFileName, setInboundFileName] = useState(null);
         <div
           className="bg-blue-500 h-4 rounded-full"
           style={{
-            width: `${comparisonResults.length / outboundData.length * 100}%`,
+            width: `${filteredComparisonResults.length / outboundData.length * 100}%`,
           }}
         ></div>
       </div>
@@ -1201,7 +1255,7 @@ const [inboundFileName, setInboundFileName] = useState(null);
         </div>
       )}
 
-      {comparisonResults.length > 0 && !loading && (
+      {filteredComparisonResults.length > 0 && !loading && (
         <table border="1" style={{ marginTop: '20px', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -1224,7 +1278,7 @@ const [inboundFileName, setInboundFileName] = useState(null);
             </tr>
           </thead>
           <tbody>
-            {comparisonResults.map((r, i) => (
+            {filteredComparisonResults.map((r, i) => (
               <tr key={i}>
                 <td>
                 <div style={{
@@ -1432,23 +1486,47 @@ const [inboundFileName, setInboundFileName] = useState(null);
                <td>
   <div className="flex justify-start space-x-3">
     {/* View OB Button */}
-    <button
+    {/* <button
       className="px-5 py-2 rounded-lg border border-blue-500 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 hover:text-blue-800 transition-all"
       onClick={() => openOutboundModal(JSON.stringify(r.outboundPayloadJson, null, 2))}
     >
       View OB
-    </button>
+    </button> */}
+
+    <button
+  className={`px-5 py-2 rounded-lg border border-blue-500 
+    ${r.outboundPayloadJson 
+      ? "bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-800" 
+      : "bg-gray-300 text-gray-500 cursor-not-allowed"}
+    transition-all text-sm font-semibold`}
+  onClick={() => openOutboundModal(JSON.stringify(r.outboundPayloadJson, null, 2))}
+  disabled={!r.outboundPayloadJson} // Disable button if outboundPayloadJson is missing
+>
+  View OB
+</button>
 
     {/* View IB Button */}
-    <button
+    {/* <button
       className="px-5 py-2 rounded-lg border border-green-500 bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 hover:text-green-800 transition-all"
       onClick={() => openInboundModal(JSON.stringify(r.inboundPayloadJson,null,2))}
     >
       View IB
-    </button>
+    </button> */}
+
+    <button
+  className={`px-5 py-2 rounded-lg border border-green-500 
+    ${r.inboundPayloadJson 
+      ? "bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800" 
+      : "bg-gray-300 text-gray-500 cursor-not-allowed"} 
+    transition-all text-sm font-semibold`}
+  onClick={() => openInboundModal(JSON.stringify(r.inboundPayloadJson, null, 2))}
+  disabled={!r.inboundPayloadJson} // Disable button if inboundPayloadJson is missing
+>
+  View IB
+</button>
 
     {/* View Both Button */}
-    <button
+    {/* <button
       className="px-5 py-2 rounded-lg border border-purple-500 bg-purple-50 text-purple-700 text-sm font-semibold hover:bg-purple-100 hover:text-purple-800 transition-all"
       onClick={() => {
         try {
@@ -1460,7 +1538,29 @@ const [inboundFileName, setInboundFileName] = useState(null);
       }}
     >
       View Both
-    </button>
+    </button> */}
+    <button
+  className={`px-5 py-2 rounded-lg border border-purple-500 
+    ${r.outboundPayloadJson && r.inboundPayloadJson
+      ? "bg-purple-50 text-purple-700 hover:bg-purple-100 hover:text-purple-800"
+      : "bg-gray-300 text-gray-500 cursor-not-allowed"}
+    transition-all text-sm font-semibold`}
+  onClick={() => {
+    try {
+      openObAndIbModal(
+        JSON.stringify(r.outboundPayloadJson, null, 2), 
+        JSON.stringify(r.inboundPayloadJson, null, 2)
+      );
+    } catch (error) {
+      console.error("Button Error:", error);
+      alert("An unexpected error occurred. Please try again.");
+    }
+  }}
+  disabled={!r.outboundPayloadJson || !r.inboundPayloadJson} // Disable button if either payload is missing
+>
+  View Both
+</button>
+
   </div>
 </td>
 
