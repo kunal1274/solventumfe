@@ -433,11 +433,7 @@ const InboundDisplay = ({ inboundData }) => {
                 </thead>
                 <tbody>
                   {pack.sOPackingSlipHeader.sOPackingSlipLine &&
-                    [...pack.sOPackingSlipHeader.sOPackingSlipLine]
-                    .sort((a, b) =>  Number(a.lineNumber) - Number(b.lineNumber))
-                    //parseInt(a.lineNumber?.toString().trim() || 0, 10) -
-                    //parseInt(b.lineNumber?.toString().trim() || 0, 10)) // Sort by lineNumber
-                    .map(
+                    pack.sOPackingSlipHeader.sOPackingSlipLine.map(
                       (line, lineIndex) => (
                         <tr key={lineIndex}>
                           <td style={{ border: "1px solid #000" }}>
@@ -550,35 +546,18 @@ const Comparison = ({ outboundData, inboundData }) => {
                       const key = `${orderUniqueRef}-${outLine.lineNumber}`;
                       const inboundLine = inboundMap[key];
 
-                    //   let inboundTotal = 0;
-                    //   let inboundBatches = [];
-                    //   if (
-                    //     inboundLine &&
-                    //     inboundLine.sOPackingSlipBatchDetails
-                    //   ) {
-                    //     inboundBatches = inboundLine.sOPackingSlipBatchDetails;
-                    //     inboundTotal = inboundBatches.reduce(
-                    //       (sum, b) => sum + b.batchedOrderQuantity,
-                    //       0
-                    //     );
-                    //   }
-
-                    let inboundTotal = 0; // Default total for inbound quantities
-        let inboundBatches = [];
-        let isNonBatchItem = false;
-
-        // Check if delivered quantity > 0 (Non-batch item logic)
-        if (inboundLine && inboundLine.delivered > 0) {
-          inboundTotal = inboundLine.delivered; // Use Delivered Qty for non-batch items
-          isNonBatchItem = true;
-        } else if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
-          // For batch items, sum up the batch quantities
-          inboundBatches = inboundLine.sOPackingSlipBatchDetails;
-          inboundTotal = inboundBatches.reduce(
-            (sum, b) => sum + b.batchedOrderQuantity,
-            0
-          );
-        }
+                      let inboundTotal = 0;
+                      let inboundBatches = [];
+                      if (
+                        inboundLine &&
+                        inboundLine.sOPackingSlipBatchDetails
+                      ) {
+                        inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+                        inboundTotal = inboundBatches.reduce(
+                          (sum, b) => sum + b.batchedOrderQuantity,
+                          0
+                        );
+                      }
 
                       const difference =
                         outLine.orderedSalesQuantity - inboundTotal;
@@ -753,26 +732,9 @@ const ComplexComparison = ({ outboundData, inboundData, actualQuantities }) => {
         const inboundKey = `${orderUniqueRef}-${lineNumber}`;
         const inboundLine = inboundMap[inboundKey];
 
-        // let inboundTotal = 0;
-        // let inboundBatches = [];
-        // if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
-        //   inboundBatches = inboundLine.sOPackingSlipBatchDetails;
-        //   inboundTotal = inboundBatches.reduce(
-        //     (sum, b) => sum + b.batchedOrderQuantity,
-        //     0
-        //   );
-        // }
-
-        let inboundTotal = 0; // Default total for inbound quantities
+        let inboundTotal = 0;
         let inboundBatches = [];
-        let isNonBatchItem = false;
-
-        // Check if delivered quantity > 0 (Non-batch item logic)
-        if (inboundLine && inboundLine.delivered > 0) {
-          inboundTotal = inboundLine.delivered; // Use Delivered Qty for non-batch items
-          isNonBatchItem = true;
-        } else if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
-          // For batch items, sum up the batch quantities
+        if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
           inboundBatches = inboundLine.sOPackingSlipBatchDetails;
           inboundTotal = inboundBatches.reduce(
             (sum, b) => sum + b.batchedOrderQuantity,
@@ -1101,20 +1063,12 @@ function App3plSoObVsIb() {
   const [isComparing, setIsComparing] = React.useState(false);
   const [isTogglingWrap, setIsTogglingWrap] = React.useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [columnFilters, setColumnFilters] = useState({}); // State to store filters per column
 
   // Modal state to display JSON payload
   const [modalContent, setModalContent] = useState(null);
 
   const [outboundFileName, setOutboundFileName] = useState(null);
   const [inboundFileName, setInboundFileName] = useState(null);
-
-  // Update column filters
-  const handleColumnFilterChange = (columnName, value) => {
-    setColumnFilters((prev) => ({ ...prev, [columnName]: value }));
-  };
-
-  // Filter logic for table rows based on columnFilters
 
   const filteredComparisonResults = comparisonResults.filter((item) => {
     const excludedFields = ["outboundPayloadJson", "inboundPayloadJson"]; // List fields to exclude from the search
@@ -1129,29 +1083,6 @@ function App3plSoObVsIb() {
         .includes(searchQuery.toLowerCase());
     });
   });
-
-  const filteredResults = useMemo(() => {
-    return filteredComparisonResults.filter((row) =>
-      Object.entries(columnFilters).every(([key, value]) => {
-        if (value === "") return true; // Empty filter matches all rows
-
-        // Handle oddBehavior (boolean)
-        if (key === "oddBehavior") {
-          return row[key] === (value.toLowerCase() === "yes");
-        }
-
-        // Handle payloadJson columns
-        if (key === "outboundPayloadJson" || key === "inboundPayloadJson") {
-          return JSON.stringify(row[key])
-            .toLowerCase()
-            .includes(value.toLowerCase());
-        }
-
-        // Default string match for other columns
-        return row[key]?.toString().toLowerCase().includes(value.toLowerCase());
-      })
-    );
-  }, [columnFilters, filteredComparisonResults]);
 
   const handleOutboundUpload = (e) => {
     const file = e.target.files[0];
@@ -1309,6 +1240,11 @@ function App3plSoObVsIb() {
 
         const outboundPayloadJson = outItem.payloadJson || "";
         const inboundPayloadJson = inItem ? inItem.payloadJson || "" : "";
+        console.log(
+          i,
+          outItem.payloadJson,
+          outItem?.payloadJson["requestHeader"]
+        );
 
         const outLineCount =
           outItem?.payloadJson?.sOHeader?.sOLines?.length || 0;
@@ -1425,6 +1361,46 @@ function App3plSoObVsIb() {
       );
     }
   };
+
+  //   const openObAndIbModalV2 = (obDataParam, ibDataParam) => {
+  //     try {
+  //       const obData = obDataParam ? parseJsonPayload(obDataParam) : ["NA"];
+  //       const ibData = ibDataParam ? parseJsonPayload(ibDataParam) : ["NA"];
+
+  //       if (obData.length > 0 && ibData.length > 0) {
+  //         setModalContent(
+  //           <>
+  //             {/* Show both comparison components */}
+  //             <Comparison outboundData={obData} inboundData={ibData} />
+  //             <ComplexComparison outboundData={obData} inboundData={ibData} actualQuantities={70} />
+  //           </>
+  //         );
+  //       } else {
+  //         setModalContent(<p>No Outbound or Inbound Payload Available for comparison</p>);
+  //       }
+  //     } catch (error) {
+  //       console.error("Error in openObAndIbModal:", error);
+  //       setModalContent(<p>Failed to process the provided payloads. Check the data and try again.</p>);
+  //     }
+  //   };
+
+  //   const openObAndIbModalV1 = (obDataParam,ibDataParam)=> {
+  //     if (obDataParam && obDataParam.length > 0 && ibDataParam && ibDataParam.length >0) {
+  //         setModalContent(
+  //             <>
+  //             {/* Show both comparison components */}
+  //             <Comparison outboundData={parseJsonPayload(obDataParam)|| ["NA"]} inboundData={parseJsonPayload(ibDataParam) || ["NA"]} />
+  //             <ComplexComparison outboundData={parseJsonPayload(obDataParam) || ["NA"]} inboundData={parseJsonPayload(ibDataParam) || ["NA"]} actualQuantities={70} />
+  //           </>
+  //         );
+  //       } else {
+  //         setModalContent(<p>No Outbound or Inbound  Payload Available for comparison </p>);
+  //       }
+  //   }
+
+  //   const openModalV1 = (content) => {
+  //     setModalContent(content);
+  //   };
 
   const closeModal = () => {
     setModalContent(null);
@@ -1601,6 +1577,18 @@ function App3plSoObVsIb() {
         />
       </div>
 
+      {/* Global Loader
+ {(isComparing || isTogglingWrap) && (
+    <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center z-50">
+      <div className="flex flex-col items-center">
+        <div className="w-16 h-16 border-4 border-t-transparent border-white rounded-full animate-spin"></div>
+        <p className="text-white mt-4 text-lg">
+          {isComparing ? "Comparison in Progress..." : "Wrapping/Unwrapping in progress..."}
+        </p>
+      </div>
+    </div>
+  )} */}
+
       {isComparing && (
         <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex flex-col items-center justify-center z-50">
           <div className="bg-white p-4 rounded shadow-lg">
@@ -1652,46 +1640,9 @@ function App3plSoObVsIb() {
               <th>OB WH</th>
               <th>Actions</th>
             </tr>
-            <tr>
-              {/* Input fields for filtering */}
-              {[
-                "keyField",
-                "outboundState",
-                "inboundState",
-                "oddBehavior",
-                "comparisonMessage",
-                "outboundSuccessCount",
-                "outboundFailureCount",
-                "inboundSuccessCount",
-                "inboundFailureCount",
-                "outboundLogDescription",
-                "inboundLogDescription",
-                "outboundPayloadJson",
-                "inboundPayloadJson",
-                "outLineCount",
-                "inLineCount",
-                "outWh",
-              ].map((column) => (
-                <th key={column}>
-                  <input
-                    type="text"
-                    placeholder={`Filter`}
-                    value={columnFilters[column] || ""}
-                    onChange={(e) =>
-                      handleColumnFilterChange(column, e.target.value)
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "4px",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                </th>
-              ))}
-            </tr>
           </thead>
           <tbody>
-            {filteredResults.map((r, i) => (
+            {filteredComparisonResults.map((r, i) => (
               <tr key={i}>
                 <td>
                   <div
@@ -1807,6 +1758,7 @@ function App3plSoObVsIb() {
                 </td>
                 <td>
                   {/* Inbound Payload JSON */}
+                  {/* Inbound Payload JSON */}
                   <div
                     style={{
                       whiteSpace: wrapLogs ? "pre-wrap" : "pre",
@@ -1842,9 +1794,85 @@ function App3plSoObVsIb() {
                 <td>{r.outLineCount}</td>
                 <td>{r.inLineCount}</td>
                 <td>{r.outWh}</td>
-
+                {/* <td>
+                  <button 
+                   style={{
+                    margin: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    backgroundColor: '#f7f7f7',
+                    color: '#333',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+                  //onClick={() => openModal(r.outboundPayloadJson || "No OB Payload Available")}
+                  onClick={() => openOutboundModal(r.outboundPayloadJson)}
+                  >
+                    View OB
+                  </button>
+                  <button 
+                   style={{
+                    margin: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    backgroundColor: '#f7f7f7',
+                    color: '#333',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+                  onClick={() => openInboundModal(r.inboundPayloadJson)}>
+                    View IB
+                  </button>
+                  <button 
+                   style={{
+                    margin: '5px',
+                    padding: '5px 10px',
+                    borderRadius: '4px',
+                    border: '1px solid #ccc',
+                    backgroundColor: '#f7f7f7',
+                    color: '#333',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#eaeaea'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#f7f7f7'}
+                //   onClick={() => openModal(
+                //     `Outbound Payload:\n${r.outboundPayloadJson || "No OB Payload Available"}\n\n` + 
+                //     `Inbound Payload:\n${r.inboundPayloadJson || "No IB Payload Available"}`
+                //   )}
+                onClick={() => {
+                    console.log("Outbound Payload JSON:", r.outboundPayloadJson);
+                    console.log("Inbound Payload JSON:", r.inboundPayloadJson);
+                    try {
+                      openObAndIbModal(r.outboundPayloadJson, r.inboundPayloadJson);
+                    } catch (error) {
+                      console.error("Button Error:", error);
+                      alert("An unexpected error occurred. Please try again.");
+                    }
+                  }}
+                  >
+                    View Both
+                  </button>
+                </td> */}
                 <td>
                   <div className="flex justify-start space-x-3">
+                    {/* View OB Button */}
+                    {/* <button
+      className="px-5 py-2 rounded-lg border border-blue-500 bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 hover:text-blue-800 transition-all"
+      onClick={() => openOutboundModal(JSON.stringify(r.outboundPayloadJson, null, 2))}
+    >
+      View OB
+    </button> */}
+
                     <button
                       className={`px-5 py-2 rounded-lg border border-blue-500 
     ${
@@ -1862,6 +1890,14 @@ function App3plSoObVsIb() {
                     >
                       View OB
                     </button>
+
+                    {/* View IB Button */}
+                    {/* <button
+      className="px-5 py-2 rounded-lg border border-green-500 bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 hover:text-green-800 transition-all"
+      onClick={() => openInboundModal(JSON.stringify(r.inboundPayloadJson,null,2))}
+    >
+      View IB
+    </button> */}
 
                     <button
                       className={`px-5 py-2 rounded-lg border border-green-500 
@@ -1881,6 +1917,20 @@ function App3plSoObVsIb() {
                       View IB
                     </button>
 
+                    {/* View Both Button */}
+                    {/* <button
+      className="px-5 py-2 rounded-lg border border-purple-500 bg-purple-50 text-purple-700 text-sm font-semibold hover:bg-purple-100 hover:text-purple-800 transition-all"
+      onClick={() => {
+        try {
+          openObAndIbModal(JSON.stringify(r.outboundPayloadJson,null,2), JSON.stringify(r.inboundPayloadJson,null,2));
+        } catch (error) {
+          console.error("Button Error:", error);
+          alert("An unexpected error occurred. Please try again.");
+        }
+      }}
+    >
+      View Both
+    </button> */}
                     <button
                       className={`px-5 py-2 rounded-lg border border-purple-500 
     ${

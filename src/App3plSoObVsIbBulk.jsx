@@ -40,10 +40,14 @@ function parseData(jsonData) {
 
   const headers = jsonData[0];
   const msgIdIndex = headers.indexOf('Message Id');
+  const legalEntityIndex = headers.indexOf("Legal entity");
+  const customerNumIndex = headers.indexOf("Customer Number");
+  const customerPORefIndex = headers.indexOf("Customer PORefrence");
   const keyFieldIndex = headers.indexOf('Key field');
   const responseStatusIndex = headers.indexOf('Response status');
   const payloadJsonIndex = headers.indexOf('Payload JSON');
   const responseDateIndex = headers.indexOf('Response date and time');
+  const createdByIndex = headers.indexOf("Created by");
   const csRemarksIndex = headers.indexOf('CS Remarks');
   const csProgressIndex = headers.indexOf('CS Progress Status');
   const logDescriptionIndex = headers.indexOf('Log description');
@@ -56,10 +60,14 @@ function parseData(jsonData) {
 
   const rows = jsonData.slice(1).map(row => ({
     messageId: row[msgIdIndex],
+    legalEntity:row[legalEntityIndex],
+    customerNumber:row[customerNumIndex],
+    customerPORefIndex:row[customerPORefIndex],
     keyField: row[keyFieldIndex],
     responseStatus: row[responseStatusIndex],
     payloadJson: row[payloadJsonIndex],
     responseDateTime: row[responseDateIndex],
+    createdBy:row[createdByIndex],
     csRemarks: csRemarksIndex !== -1 ? row[csRemarksIndex] : '',
     csProgressStatus: csProgressIndex !== -1 ? row[csProgressIndex] : '',
     logDescription: logDescriptionIndex !== -1 ? row[logDescriptionIndex] : ''
