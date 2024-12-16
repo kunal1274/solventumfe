@@ -434,11 +434,12 @@ const InboundDisplay = ({ inboundData }) => {
                 <tbody>
                   {pack.sOPackingSlipHeader.sOPackingSlipLine &&
                     [...pack.sOPackingSlipHeader.sOPackingSlipLine]
-                    .sort((a, b) =>  Number(a.lineNumber) - Number(b.lineNumber))
-                    //parseInt(a.lineNumber?.toString().trim() || 0, 10) -
-                    //parseInt(b.lineNumber?.toString().trim() || 0, 10)) // Sort by lineNumber
-                    .map(
-                      (line, lineIndex) => (
+                      .sort(
+                        (a, b) => Number(a.lineNumber) - Number(b.lineNumber)
+                      )
+                      //parseInt(a.lineNumber?.toString().trim() || 0, 10) -
+                      //parseInt(b.lineNumber?.toString().trim() || 0, 10)) // Sort by lineNumber
+                      .map((line, lineIndex) => (
                         <tr key={lineIndex}>
                           <td style={{ border: "1px solid #000" }}>
                             {line.lineNumber}
@@ -469,8 +470,7 @@ const InboundDisplay = ({ inboundData }) => {
                             )}
                           </td>
                         </tr>
-                      )
-                    )}
+                      ))}
                 </tbody>
               </table>
             </section>
@@ -550,35 +550,38 @@ const Comparison = ({ outboundData, inboundData }) => {
                       const key = `${orderUniqueRef}-${outLine.lineNumber}`;
                       const inboundLine = inboundMap[key];
 
-                    //   let inboundTotal = 0;
-                    //   let inboundBatches = [];
-                    //   if (
-                    //     inboundLine &&
-                    //     inboundLine.sOPackingSlipBatchDetails
-                    //   ) {
-                    //     inboundBatches = inboundLine.sOPackingSlipBatchDetails;
-                    //     inboundTotal = inboundBatches.reduce(
-                    //       (sum, b) => sum + b.batchedOrderQuantity,
-                    //       0
-                    //     );
-                    //   }
+                      //   let inboundTotal = 0;
+                      //   let inboundBatches = [];
+                      //   if (
+                      //     inboundLine &&
+                      //     inboundLine.sOPackingSlipBatchDetails
+                      //   ) {
+                      //     inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+                      //     inboundTotal = inboundBatches.reduce(
+                      //       (sum, b) => sum + b.batchedOrderQuantity,
+                      //       0
+                      //     );
+                      //   }
 
-                    let inboundTotal = 0; // Default total for inbound quantities
-        let inboundBatches = [];
-        let isNonBatchItem = false;
+                      let inboundTotal = 0; // Default total for inbound quantities
+                      let inboundBatches = [];
+                      let isNonBatchItem = false;
 
-        // Check if delivered quantity > 0 (Non-batch item logic)
-        if (inboundLine && inboundLine.delivered > 0) {
-          inboundTotal = inboundLine.delivered; // Use Delivered Qty for non-batch items
-          isNonBatchItem = true;
-        } else if (inboundLine && inboundLine.sOPackingSlipBatchDetails) {
-          // For batch items, sum up the batch quantities
-          inboundBatches = inboundLine.sOPackingSlipBatchDetails;
-          inboundTotal = inboundBatches.reduce(
-            (sum, b) => sum + b.batchedOrderQuantity,
-            0
-          );
-        }
+                      // Check if delivered quantity > 0 (Non-batch item logic)
+                      if (inboundLine && inboundLine.delivered > 0) {
+                        inboundTotal = inboundLine.delivered; // Use Delivered Qty for non-batch items
+                        isNonBatchItem = true;
+                      } else if (
+                        inboundLine &&
+                        inboundLine.sOPackingSlipBatchDetails
+                      ) {
+                        // For batch items, sum up the batch quantities
+                        inboundBatches = inboundLine.sOPackingSlipBatchDetails;
+                        inboundTotal = inboundBatches.reduce(
+                          (sum, b) => sum + b.batchedOrderQuantity,
+                          0
+                        );
+                      }
 
                       const difference =
                         outLine.orderedSalesQuantity - inboundTotal;
@@ -1787,7 +1790,7 @@ function App3plSoObVsIb() {
                       backgroundColor: "#f9f9f9", // Optional: subtle background color
                     }}
                     title={
-                        typeof r.outboundPayloadJson === "object"
+                      typeof r.outboundPayloadJson === "object"
                         ? JSON.stringify(r.outboundPayloadJson, null, 2) // Fix: JSON as string for title
                         : r.outboundPayloadJson
                     } // Displays full JSON on hover
@@ -1817,7 +1820,7 @@ function App3plSoObVsIb() {
                       backgroundColor: "#f9f9f9",
                     }}
                     title={
-                        typeof r.inboundPayloadJson === "object"
+                      typeof r.inboundPayloadJson === "object"
                         ? JSON.stringify(r.inboundPayloadJson, null, 2) // Fix: JSON as string for title
                         : r.inboundPayloadJson
                     } // Displays full JSON on hover
@@ -1906,7 +1909,7 @@ function App3plSoObVsIb() {
         </table>
       )}
 
-      {modalContent && (
+      {/* {modalContent && (
         <div
           style={{
             position: "fixed",
@@ -1941,6 +1944,59 @@ function App3plSoObVsIb() {
           >
             Close
           </button>
+        </div>
+      )} */}
+
+      {modalContent && (
+        <div
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            backgroundColor: "white",
+            border: "1px solid #ccc",
+            padding: "20px",
+            zIndex: 1000,
+            maxWidth: "80%",
+            maxHeight: "80%",
+            overflow: "auto",
+            borderRadius: "8px",
+            boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+          }}
+        >
+          {/* Close Button */}
+          <div
+            style={{
+              position: "absolute",
+              top: "10px",
+              right: "10px",
+              cursor: "pointer",
+              fontSize: "18px",
+              color: "#fff", // White 'X' for contrast
+              backgroundColor: "#ff4d4d", // Red background
+              // color: "#666",
+              // backgroundColor: "#f1f1f1",
+              borderRadius: "50%",
+              width: "30px",
+              height: "30px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              transition: "all 0.3s",
+            }}
+            title="Close" // Tooltip
+            onMouseEnter={(e) => (e.target.style.backgroundColor = "#e60000")} // Darker red on hover
+            onMouseLeave={(e) => (e.target.style.backgroundColor = "#ff4d4d")} // Back to original red
+            // onMouseEnter={(e) => (e.target.style.backgroundColor = "#e1e1e1")}
+            // onMouseLeave={(e) => (e.target.style.backgroundColor = "#f1f1f1")}
+            onClick={closeModal} // Close modal on click
+          >
+            &#x2715; {/* Unicode 'X' symbol */}
+          </div>
+
+          {/* Modal Content */}
+          <pre>{modalContent}</pre>
         </div>
       )}
     </div>
