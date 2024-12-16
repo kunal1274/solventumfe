@@ -1787,13 +1787,9 @@ function App3plSoObVsIb() {
                       backgroundColor: "#f9f9f9", // Optional: subtle background color
                     }}
                     title={
-                      typeof r.outboundPayloadJson === "object" ? (
-                        <pre className="text-sm whitespace-pre-wrap">
-                          {JSON.stringify(r.outboundPayloadJson, null, 2)}
-                        </pre>
-                      ) : (
-                        r.outboundPayloadJson
-                      )
+                        typeof r.outboundPayloadJson === "object"
+                        ? JSON.stringify(r.outboundPayloadJson, null, 2) // Fix: JSON as string for title
+                        : r.outboundPayloadJson
                     } // Displays full JSON on hover
                   >
                     {typeof r.outboundPayloadJson === "object" ? (
@@ -1821,13 +1817,9 @@ function App3plSoObVsIb() {
                       backgroundColor: "#f9f9f9",
                     }}
                     title={
-                      typeof r.inboundPayloadJson === "object" ? (
-                        <pre className="text-sm whitespace-pre-wrap">
-                          {JSON.stringify(r.inboundPayloadJson, null, 2)}
-                        </pre>
-                      ) : (
-                        r.inboundPayloadJson
-                      )
+                        typeof r.inboundPayloadJson === "object"
+                        ? JSON.stringify(r.inboundPayloadJson, null, 2) // Fix: JSON as string for title
+                        : r.inboundPayloadJson
                     } // Displays full JSON on hover
                   >
                     {typeof r.inboundPayloadJson === "object" ? (
